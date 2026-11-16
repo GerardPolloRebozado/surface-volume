@@ -38,6 +38,11 @@ jobs:
           cd packages/backend-nestjs
           pnpm install --strict-peer-dependencies=false
 
+      - name: Generate Prisma client
+        run: |
+          cd packages/backend-nestjs
+          pnpm prisma generate
+
       - name: Build NestJS backend
         run: |
           cd packages/backend-nestjs
@@ -71,7 +76,7 @@ jobs:
           git diff --quiet packages/api-client/ packages/backend-nestjs/openapi.json || echo "changes_detected=true" >> "$GITHUB_OUTPUT"
 
       - name: Commit generated client
-        if: steps.changes.outputs.changes_detected == 'true'
+        if: github.event_name == 'push' && steps.changes.outputs.changes_detected == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
