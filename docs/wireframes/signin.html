@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><title>Sign in · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<div class="h-screen flex items-center justify-center bg-win" style="padding:24px">
+ <div class="max-w-[400px] w-full space-y-6">
+  <div class="text-center">
+   <div class="inline-flex items-center gap-2 mb-3"><span class="text-[26px] font-semibold tracking-tight">area<span class="text-accent">.</span></span></div>
+   <h2 class="text-[16px] font-semibold" x-text="t('auth.signInTitle')"></h2>
+   <p class="text-[12px] text-mute leading-relaxed mt-1" x-text="t('auth.signInLead')"></p>
+  </div>
+
+  <div class="card p-5 space-y-4" x-data="{
+    email: '', password: '', showing: false, busy: false, err: '',
+    get label(){ return showing?t('auth.hidePassword'):t('auth.showPassword') },
+    toggle(){ showing=!showing },
+    submit(){
+      this.err='';
+      if(!this.email||!this.password){ this.err=t('auth.errorRequired'); return; }
+      this.busy=true;
+      setTimeout(()=>{ this.busy=false; location='index.html'; }, 700);
+    }
+  }">
+   <label class="block">
+    <span class="label" x-text="t('auth.email')"></span>
+    <input x-model="email" type="email" class="input mt-1" :placeholder="t('auth.emailPlaceholder')" :aria-label="t('auth.email')">
+   </label>
+   <label class="block">
+    <span class="label flex items-center justify-between">
+     <span x-text="t('auth.password')"></span>
+     <button type="button" class="text-[10px] text-mute hover:text-ink" @click="showing=!showing" x-text="showing?t('auth.hidePassword'):t('auth.showPassword')"></button>
+    </span>
+    <input :type="showing?'text':'password'" x-model="password" class="input mt-1 pr-10" :placeholder="t('auth.passwordPlaceholder')" :aria-label="t('auth.password')">
+   </label>
+   <p x-show="err" class="text-[11px] text-bad font-medium leading-relaxed" x-text="err"></p>
+   <div class="flex items-center justify-between">
+    <button type="button" class="text-[11px] text-accent hover:underline" x-text="t('auth.forgot')"></button>
+   </div>
+   <button type="button" class="btn btn-accent w-full" :disabled="busy" @click="submit()" x-text="busy?t('auth.signingIn'):t('auth.signIn')"></button>
+   <div class="relative">
+    <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-line"></span></div>
+    <div class="relative flex justify-center text-[10px] font-semibold uppercase tracking-[.08em] text-faint"><span class="px-2" style="background:var(--win)">or</span></div>
+   </div>
+   <button type="button" class="btn btn-quiet w-full" x-text="t('auth.sso')"></button>
+   <p class="text-[11px] text-mute leading-relaxed text-center" x-text="t('auth.ssoHint')"></p>
+   <p class="text-[11px] text-mute text-center" x-text="t('auth.demo',{password:'area2026'})"></p>
+   <div class="border-t border-line pt-4 mt-4 text-center">
+    <p class="text-[11px] text-mute mb-1"><span class="text-[10px] font-semibold uppercase tracking-[.06em] text-faint">New to area?</span></p>
+    <button type="button" class="btn btn-sm text-[11px] font-medium" :href="'signin.html?mode=signup'" @click="location='signup.html'" x-text="t('auth.noAccount')+' '+t('auth.createAccount')"></button>
+   </div>
+  </div>
+
+  <div class="text-center">
+   <p class="text-[10.5px] text-mute leading-relaxed" x-text="t('auth.secure')"></p>
+   <p class="text-[10.5px] text-mute" x-text="t('app.server')+'. '+t('app.prototype')"></p>
+  </div>
+ </div>
+</div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+</body></html>

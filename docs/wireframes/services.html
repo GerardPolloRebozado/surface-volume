@@ -1,0 +1,150 @@
+<!doctype html><html lang="en"><head><title>Services · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="Services"><div x-data="{
+  query: '', cat: '', tab: 'all',
+  get cats(){ return [...new Set(DATA.services.map(s=>s.category))] },
+  get catLabel(){ return t('cat.'+this.cat) },
+  get list(){
+    let s = DATA.services.filter(x=> this.tab==='connected' ? x.state!=='none' : true);
+    if(this.cat) s = s.filter(x=>x.category===this.cat);
+    const q = this.query.toLowerCase().trim();
+    if(q) s = s.filter(x=>(tx(x.name)+' '+tx(x.blurb)+' '+x.category).toLowerCase().includes(q));
+    return s.sort((a,b)=>(b.state==='connected')-(a.state==='connected') || (tx(a.name)).localeCompare(tx(b.name)));
+  },
+  get connected(){ return DATA.services.filter(s=>s.state==='connected') },
+  get expired(){ return DATA.services.filter(s=>s.state==='expired') },
+  get none(){ return DATA.services.filter(s=>s.state==='none') },
+  stateTone(st){ return st==='connected'?'ok':st==='expired'?'warn':'neutral'; },
+  stateLabel(st){ return t(st==='connected'?'services.stateOk':st==='expired'?'services.stateExpired':'services.stateNone'); },
+  connectBtn(st){ return st==='connected'?t('services.disconnect'):st==='expired'?t('services.reconnect'):t('services.connect'); }
+}" class="h-full flex flex-col bg-win">
+
+ <ui-bar heading-key="services.title" sub-key="services.lead">
+  <div class="ml-auto flex items-center gap-2">
+   <select x-model="tab" @change="cat=''" class="select text-[12px]" style="min-height:34px" :aria-label="t('services.tabFilter')">
+    <option value="all" x-text="t('services.allTitle')"></option>
+    <option value="connected" x-text="t('services.connectedTitle')"></option>
+    <option value="expired" x-text="t('services.expiredTitle')"></option>
+    <option value="none" x-text="t('services.stateNone')"></option>
+   </select>
+   <button type="button" class="btn btn-sm" :href="'service.html?id='+(list[0]?.id||'')" :disabled="!list.length" x-html="ICON('sliders','',14)+'<span class=\'hidden sm:inline\'>'+t('services.details')+'</span>'"></button>
+  </div>
+ </ui-bar>
+
+ <div class="flex-1 min-h-0 overflow-auto">
+  <div class="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-7">
+
+   <!-- Your connections -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <div class="flex items-center justify-between">
+      <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('services.connectedTitle')"></h2>
+      <span class="text-[11px] text-faint num" x-text="connected.length+expired.length+none.length+' / '+DATA.services.length"></span>
+     </div>
+    </div>
+    <div class="px-4 py-4 space-y-4">
+     <div class="space-y-2">
+      <template x-for="s in connected" :key="s.id">
+       <div class="rounded-xl border border-line p-3 flex items-center gap-3 hover:bg-fill transition-colors group">
+        <div class="mt-0.5 shrink-0" x-html="ICON(svcIcon(s.id),'',22)" :style="'color:var(--svc)'"></div>
+        <div class="min-w-0 flex-1">
+         <div class="flex items-baseline gap-2">
+          <div class="text-[12.5px] font-semibold truncate" x-text="tx(s.name)"></div>
+          <span class="text-[10px] text-faint num" x-text="usedIn(s.id)"></span>
+         </div>
+         <div class="text-[11px] text-mute truncate" x-text="t('services.stateOk',{account:s.account})"></div>
+        </div>
+        <span class="ml-auto pill pill-ok shrink-0" x-text="t('common.connected')"></span>
+       </div>
+      </template>
+      <template x-for="s in expired" :key="s.id">
+       <div class="rounded-xl border border-line p-3 flex items-center gap-3 hover:bg-fill transition-colors group" style="border-color:var(--warn-soft)">
+        <div class="mt-0.5 shrink-0" x-html="ICON(svcIcon(s.id),'',22)" :style="'color:var(--svc)'"></div>
+        <div class="min-w-0 flex-1">
+         <div class="flex items-baseline gap-2">
+          <div class="text-[12.5px] font-semibold truncate text-warn" x-text="tx(s.name)"></div>
+          <span class="text-[10px] text-faint num" x-text="usedIn(s.id)"></span>
+         </div>
+         <div class="text-[11px] text-mute truncate text-warn" x-text="t('services.stateExpired')"></div>
+        </div>
+        <span class="ml-auto pill pill-warn shrink-0" x-text="t('common.reconnect')"></span>
+       </div>
+      </template>
+      <template x-for="s in none" :key="s.id">
+       <div class="rounded-xl border border-line p-3 flex items-center gap-3 hover:bg-fill transition-colors group" style="border-color:var(--line)">
+        <div class="mt-0.5 shrink-0" x-html="ICON(svcIcon(s.id),'',22)" :style="'color:var(--mute)'"></div>
+        <div class="min-w-0 flex-1">
+         <div class="flex items-baseline gap-2">
+          <div class="text-[12.5px] font-semibold truncate text-mute" x-text="tx(s.name)"></div>
+          <span class="text-[10px] text-faint num" x-text="usedIn(s.id)"></span>
+         </div>
+         <div class="text-[11px] text-mute truncate" x-text="t('services.stateNone')"></div>
+        </div>
+        <span class="ml-auto pill shrink-0" x-text="t('services.connect')"></span>
+       </div>
+      </template>
+      <template x-if="!connected.length&&!expired.length&&!none.length"><p class="text-[12px] text-mute" x-text="t('services.stateNone')"></p></template>
+     </div>
+    </div>
+   </section>
+
+   <!-- Catalogue -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+       <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('services.allTitle')"></h2>
+       <span class="text-[11px] text-faint num" x-text="list.length"></span>
+      </div>
+      <div class="relative hidden sm:block">
+       <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" x-html="ICON('search','',14)"></span>
+       <input x-model="query" class="input pl-8 w-[220px] text-[12px]" :placeholder="t('services.search')" :aria-label="t('services.search')" type="search">
+      </div>
+      <div class="seg shrink-0 sm:hidden" role="group" :aria-label="t('services.categoryLabel')">
+       <button type="button" :aria-pressed="cat===''" @click="cat=''" class="!text-[11px] px-2" x-text="t('services.allTitle')"></button>
+       <template x-for="c in cats" :key="c">
+        <button type="button" :aria-pressed="cat===c" @click="cat=c" class="!text-[11px] px-2" x-text="t('cat.'+c)"></button>
+       </template>
+      </div>
+     </div>
+    </div>
+    <div class="px-4 py-4 space-y-4">
+     <template x-if="!list.length">
+      <div class="text-center py-6">
+       <ui-empty compact icon="layers" :title="t('services.empty',{query:query||''})" :body="t('services.emptyCat',{category:catLabel})"></ui-empty>
+      </div>
+     </template>
+     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <template x-for="s in list" :key="s.id">
+       <a :href="'service.html?id='+s.id" class="rounded-xl border border-line p-4 flex flex-col hover:border-accent transition-colors group">
+        <div class="flex items-start gap-3 mb-3">
+         <div class="mt-0.5 shrink-0" x-html="ICON(svcIcon(s.id),'',20)" :style="'color:var(--svc)'"></div>
+         <div class="min-w-0 flex-1">
+          <div class="flex items-baseline gap-2">
+           <div class="text-[13px] font-semibold truncate group-hover:text-ink transition-colors" x-text="tx(s.name)"></div>
+           <span class="text-[10px] text-faint num" x-text="usedIn(s.id)"></span>
+          </div>
+          <div class="text-[11px] text-mute truncate line-clamp-2 mt-0.5" x-text="tx(s.blurb)"></div>
+         </div>
+         <span class="ml-auto shrink-0" x-html="ICON('arrow-right','',13)"></span>
+        </div>
+        <div class="mt-auto flex items-center gap-2">
+         <span class="pill !py-0 !px-1.5 !text-[9.5px]" :class="stateTone(s.state)==='ok'?'pill-ok':stateTone(s.state)==='warn'?'pill-warn':'pill-neutral'" x-text="stateLabel(s.state)"></span>
+         <span class="text-[10px] text-mute font-mono" x-text="(s.triggers.length)+' · '+(s.actions.length)"></span>
+        </div>
+       </a>
+      </template>
+     </div>
+     <p x-show="query&&list.length===0" class="text-[12px] text-mute mt-2" x-text="t('services.empty',{query:query})"></p>
+    </div>
+   </section>
+
+   <p class="text-[11px] text-faint" x-text="t('services.footer')"></p>
+
+  </div>
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>

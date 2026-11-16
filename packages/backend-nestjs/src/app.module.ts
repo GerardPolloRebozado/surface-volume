@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PingController } from './modules/ping/ping.controller';
+import { PingController } from './ping/ping.controller';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { INestApplication } from '@nestjs/common';
 
@@ -19,17 +19,22 @@ export class AppModule {
   static setupSwagger(app: INestApplication): void {
     const config = new DocumentBuilder()
       .setTitle('Surface Volume API')
-      .setDescription('Surface Volume automation platform API - OpenAPI spec for Kotlin Multiplatform client generation')
+      .setDescription(
+        'Surface Volume automation platform API - OpenAPI spec for Kotlin Multiplatform client generation',
+      )
       .setVersion('1.0')
       .addTag('surface-volume')
       .addTag('ping')
-      .addBearerAuth({
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'Authorization',
-        description: 'Enter JWT token',
-      }, 'bearer')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          description: 'Enter JWT token',
+        },
+        'bearer',
+      )
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
