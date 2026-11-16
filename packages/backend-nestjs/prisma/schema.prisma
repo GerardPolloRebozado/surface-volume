@@ -1,22 +1,956 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Persistence model for surface-volume.
+// Design rationale: docs/persistence.md and docs/adr/0007-workflow-versioned-jsonb.md.
+//
+// Conventions
+// - UUIDv7 primary keys (time-ordered, opaque in the public API).
+// - snake_case tables/columns via @@map/@map, camelCase in the Prisma client.
+// - `*_enc` columns are AES-256-GCM ciphertexts; `key_version` names the key used.
+// - `*_hash` columns are SHA-256 digests of one-time secrets, never the secret itself.
+// - Things Prisma cannot express (partial/GIN indexes, grants) are appended by hand
+//   in the migration SQL — see the "manual" section at the end of each migration.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [citext]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  user
+  admin
+}
+
+enum UserStatus {
+  pending // registered, email not confirmed yet
+  active
+  suspended // by an admin (ENG-ADMIN)
+  deleting // erasure in progress (SEC-GDPR)
+}
+
+enum VerificationPurpose {
+  email_verify
+  password_reset
+  email_change
+}
+
+enum MfaFactorType {
+  totp
+}
+
+enum AuthType {
+  none
+  api_key
+  basic
+  oauth2
+  custom
+}
+
+enum ConnectionStatus {
+  active
+  expired
+  revoked
+  error
+}
+
+enum OAuthStatePurpose {
+  login // OIDC: who the user is
+  connect // OAuth2: what we may do on their behalf
+}
+
+enum WorkflowStatus {
+  draft
+  on
+  off
+  error
+}
+
+enum TriggerType {
+  webhook
+  polling
+  schedule
+}
+
+enum RunMode {
+  live
+  test
+  manual
+  retry
+}
+
+enum RunStatus {
+  queued
+  running
+  waiting // paused, e.g. on a human review (AI-REVIEW) or a delay node
+  succeeded
+  failed
+  cancelled
+}
+
+enum StepStatus {
+  pending
+  running
+  succeeded
+  failed
+  skipped
+  not_reached
+  waiting
+}
+
+/// Mirrors ActionError['kind'] in src/workflow/actions.types.ts
+enum ErrorKind {
+  retryable
+  fatal
+  auth_expired
+  rate_limited
+}
+
+enum TemplateVisibility {
+  private
+  unlisted
+  public
+  system
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+  edited
+  expired
+}
+
+enum FilePurpose {
+  upload
+  ai_input
+  export
+  run_artifact
+}
+
+enum ActorType {
+  user
+  admin
+  system
+}
+
+enum ConsentKind {
+  terms
+  privacy
+  marketing
+}
+
+enum DataRequestType {
+  export
+  erasure
+}
+
+enum DataRequestStatus {
+  pending
+  processing
+  done
+  failed
+}
+
+enum DevicePlatform {
+  android
+  ios
+}
+
+enum NotificationChannel {
+  email
+  push
+}
+
+enum NotificationKind {
+  run_failed
+  weekly_summary
+  reconnect
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Identity & authentication (common base + SEC-AUTH)
+// ─────────────────────────────────────────────────────────────────────────────
+
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  name         String?
-  passwordHash String? // nullable so users who only log in via OAuth have no password
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String     @id @default(uuid(7)) @db.Uuid
+  email           String     @unique @db.Citext
+  username        String     @unique @db.Citext
+  displayName     String?    @map("display_name")
+  /// Null for users who only sign in through an OIDC provider.
+  passwordHash    String?    @map("password_hash")
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz
+  role            UserRole   @default(user)
+  status          UserStatus @default(pending)
+  locale          String     @default("en")
+  timezone        String     @default("UTC")
+  /// Theme, density, reduce-motion, notification toggles. Validated by Zod at the API.
+  preferences     Json       @default("{}")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  identities         UserIdentity[]
+  verificationTokens VerificationToken[]
+  sessions           Session[]
+  mfaFactors         MfaFactor[]
+  recoveryCodes      MfaRecoveryCode[]
+  loginAttempts      LoginAttempt[]
+  connections        Connection[]
+  oauthStates        OAuthState[]
+  workflows          Workflow[]
+  workflowVersions   WorkflowVersion[]
+  runs               WorkflowRun[]
+  idempotencyKeys    IdempotencyKey[]
+  templates          Template[]
+  prompts            Prompt[]
+  promptVersions     PromptVersion[]
+  reviewTasks        ReviewTask[]        @relation("ReviewAssignee")
+  evalDatasets       EvalDataset[]
+  files              File[]
+  auditLogs          AuditLog[]
+  consents           Consent[]
+  dataRequests       DataRequest[]
+  pushDevices        PushDevice[]
+  notifications      Notification[]
+
+  @@map("users")
+}
+
+/// OIDC link: answers "who is this user" for an external identity provider.
+model UserIdentity {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  provider    String
+  /// The provider's stable `sub` claim.
+  subject     String
+  emailAtLink String?  @map("email_at_link")
+  linkedAt    DateTime @default(now()) @map("linked_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+/// Email confirmation codes, password reset and email change links (stored hashed).
+model VerificationToken {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  purpose    VerificationPurpose
+  tokenHash  String              @map("token_hash")
+  attempts   Int                 @default(0)
+  expiresAt  DateTime            @map("expires_at") @db.Timestamptz
+  consumedAt DateTime?           @map("consumed_at") @db.Timestamptz
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("verification_tokens")
+}
+
+/// Refresh-token sessions with rotation. Reusing a rotated token revokes the whole family.
+model Session {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  familyId         String    @map("family_id") @db.Uuid
+  replacedById     String?   @unique @map("replaced_by_id") @db.Uuid
+  userAgent        String?   @map("user_agent")
+  ip               String?
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy Session? @relation("SessionRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   Session? @relation("SessionRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("sessions")
+}
+
+model MfaFactor {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  type        MfaFactorType
+  secretEnc   Bytes         @map("secret_enc")
+  keyVersion  Int           @map("key_version")
+  confirmedAt DateTime?     @map("confirmed_at") @db.Timestamptz
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_factors")
+}
+
+model MfaRecoveryCode {
+  id       String    @id @default(uuid(7)) @db.Uuid
+  userId   String    @map("user_id") @db.Uuid
+  codeHash String    @map("code_hash")
+  usedAt   DateTime? @map("used_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
+}
+
+/// Sliding window for lockout and rate limiting.
+model LoginAttempt {
+  id         BigInt   @id @default(autoincrement())
+  userId     String?  @map("user_id") @db.Uuid
+  /// The email or username typed in, lowercased.
+  identifier String
+  ip         String?
+  success    Boolean
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([identifier, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Connections: delegated access to third-party services (SEC-CRYPTO)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// = AppCredential in src/workflow/credential.types.ts.
+/// Answers "what may the application do on the user's behalf".
+model Connection {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  /// AppDefinition.id from the code catalogue.
+  appId             String           @map("app_id")
+  displayName       String           @map("display_name")
+  /// Account id on the provider side (e.g. GitHub user id), to allow several accounts per app.
+  externalAccountId String           @default("") @map("external_account_id")
+  authType          AuthType         @map("auth_type")
+  /// Encrypted JSON: { accessToken, refreshToken, apiKey, ... }.
+  credentialsEnc    Bytes            @map("credentials_enc")
+  keyVersion        Int              @map("key_version")
+  scopes            String[]         @default([])
+  /// Access token expiry; drives the proactive refresh job.
+  expiresAt         DateTime?        @map("expires_at") @db.Timestamptz
+  status            ConnectionStatus @default(active)
+  lastRefreshedAt   DateTime?        @map("last_refreshed_at") @db.Timestamptz
+  lastError         String?          @map("last_error")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  triggers            WorkflowTrigger[]
+  workflowConnections WorkflowConnection[]
+
+  @@unique([userId, appId, externalAccountId])
+  @@index([status, expiresAt])
+  @@map("connections")
+}
+
+/// Short-lived state + PKCE verifier for OIDC login and OAuth2 connect flows.
+model OAuthState {
+  state           String            @id
+  userId          String?           @map("user_id") @db.Uuid
+  purpose         OAuthStatePurpose
+  /// OIDC provider name (login) or AppDefinition.id (connect).
+  target          String
+  codeVerifierEnc Bytes?            @map("code_verifier_enc")
+  keyVersion      Int?              @map("key_version")
+  redirectUri     String            @map("redirect_uri")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt       DateTime          @map("expires_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("oauth_states")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Workflows
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Workflow {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  name            String
+  description     String?
+  status          WorkflowStatus @default(draft)
+  /// Why the workflow is in `error` (e.g. "Slack connection revoked").
+  statusReason    String?        @map("status_reason")
+  /// The version hooks execute. Null while the workflow was never enabled.
+  activeVersionId String?        @unique @map("active_version_id") @db.Uuid
+  /// The version the builder shows (may be ahead of the active one).
+  latestVersionId String?        @unique @map("latest_version_id") @db.Uuid
+  templateId      String?        @map("template_id") @db.Uuid
+  lastRunAt       DateTime?      @map("last_run_at") @db.Timestamptz
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions      WorkflowVersion[]     @relation("WorkflowVersions")
+  activeVersion WorkflowVersion?      @relation("WorkflowActiveVersion", fields: [activeVersionId], references: [id], onDelete: Restrict)
+  latestVersion WorkflowVersion?      @relation("WorkflowLatestVersion", fields: [latestVersionId], references: [id], onDelete: Restrict)
+  template      Template?             @relation("TemplateInstances", fields: [templateId], references: [id], onDelete: SetNull)
+  trigger       WorkflowTrigger?
+  connections   WorkflowConnection[]
+  store         ConnectorStoreEntry[]
+  runs          WorkflowRun[]
+  templatesFrom Template[]            @relation("TemplateSource")
+  notifications Notification[]
+
+  @@index([userId, updatedAt])
+  @@index([status])
+  @@map("workflows")
+}
+
+/// Immutable snapshot of a workflow graph. Never updated: every save inserts a new row.
+model WorkflowVersion {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  workflowId    String   @map("workflow_id") @db.Uuid
+  version       Int
+  /// Version of the definition format, for future in-place upgrades.
+  schemaVersion Int      @default(1) @map("schema_version")
+  /// { trigger: TriggerNode, nodes: WorkflowNode[], links: Link[] } — see workflow.types.ts.
+  /// Structurally validated (Zod + graph rules + key-path references) before insert.
+  definition    Json
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  workflow  Workflow          @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
+  createdBy User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  activeFor Workflow?         @relation("WorkflowActiveVersion")
+  latestFor Workflow?         @relation("WorkflowLatestVersion")
+  triggers  WorkflowTrigger[]
+  runs      WorkflowRun[]
+
+  @@unique([workflowId, version])
+  @@map("workflow_versions")
+}
+
+/// Projection of the active version's trigger node, for the hook scheduler and webhook routing.
+/// Claimed with `FOR UPDATE SKIP LOCKED` so several workers never poll the same trigger.
+model WorkflowTrigger {
+  id                     String      @id @default(uuid(7)) @db.Uuid
+  workflowId             String      @unique @map("workflow_id") @db.Uuid
+  versionId              String      @map("version_id") @db.Uuid
+  appId                  String      @map("app_id")
+  triggerKey             String      @map("trigger_key")
+  type                   TriggerType
+  connectionId           String?     @map("connection_id") @db.Uuid
+  inputs                 Json        @default("{}")
+  intervalSec            Int?        @map("interval_sec")
+  cron                   String?
+  nextRunAt              DateTime?   @map("next_run_at") @db.Timestamptz
+  enabled                Boolean     @default(false)
+  /// Opaque path segment of the public webhook URL: /hooks/:webhookToken.
+  webhookToken           String?     @unique @map("webhook_token")
+  webhookSecretEnc       Bytes?      @map("webhook_secret_enc")
+  keyVersion             Int?        @map("key_version")
+  externalSubscriptionId String?     @map("external_subscription_id")
+  /// High-water mark for polling (last seen id/timestamp), connector-defined.
+  cursor                 Json?
+  leaseUntil             DateTime?   @map("lease_until") @db.Timestamptz
+  leaseOwner             String?     @map("lease_owner")
+  consecutiveFailures    Int         @default(0) @map("consecutive_failures")
+  lastCheckedAt          DateTime?   @map("last_checked_at") @db.Timestamptz
+  lastError              String?     @map("last_error")
+  createdAt              DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  workflow   Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version    WorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  connection Connection?     @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  events     TriggerEvent[]
+
+  @@index([connectionId])
+  @@index([appId, triggerKey])
+  // + partial index on (next_run_at) WHERE enabled — see migration SQL.
+  @@map("workflow_triggers")
+}
+
+/// Every connection referenced by the active version (trigger or action nodes), so that
+/// revoking a connection can find and flag the workflows it breaks, with a real FK.
+model WorkflowConnection {
+  workflowId   String @map("workflow_id") @db.Uuid
+  connectionId String @map("connection_id") @db.Uuid
+  nodeId       String @map("node_id")
+
+  workflow   Workflow   @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@id([workflowId, connectionId, nodeId])
+  @@index([connectionId])
+  @@map("workflow_connections")
+}
+
+/// Backs RunContext.store (KeyValueStore) for connectors that need state between runs.
+model ConnectorStoreEntry {
+  workflowId String    @map("workflow_id") @db.Uuid
+  nodeId     String    @map("node_id")
+  key        String
+  value      Json
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@id([workflowId, nodeId, key])
+  @@map("connector_store")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Hooks: detected events and deduplication
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One row per occurrence detected by a hook. The unique (trigger_id, external_id) pair
+/// is what guarantees the same occurrence never starts a second run:
+/// hooks INSERT ... ON CONFLICT DO NOTHING and only enqueue when a row was inserted.
+model TriggerEvent {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  triggerId  String    @map("trigger_id") @db.Uuid
+  /// TriggerEvent.id from the connector, or a hash of the payload when the provider has none.
+  externalId String    @map("external_id")
+  /// Nulled by the retention job after N days; the dedup key stays.
+  payload    Json?
+  occurredAt DateTime? @map("occurred_at") @db.Timestamptz
+  receivedAt DateTime  @default(now()) @map("received_at") @db.Timestamptz
+
+  trigger WorkflowTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+  run     WorkflowRun?
+
+  @@unique([triggerId, externalId])
+  @@index([receivedAt])
+  @@map("trigger_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Runs & steps (ENG-ASYNC, ENG-RETRY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A run row is written before the job is enqueued: Postgres is the durable source of
+/// truth, the queue only delivers. A sweeper re-enqueues runs whose lease expired.
+model WorkflowRun {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  workflowId     String     @map("workflow_id") @db.Uuid
+  versionId      String     @map("version_id") @db.Uuid
+  /// Denormalized owner, for the cross-workflow Runs screen.
+  userId         String     @map("user_id") @db.Uuid
+  /// One live run per detected event.
+  triggerEventId String?    @unique @map("trigger_event_id") @db.Uuid
+  mode           RunMode    @default(live)
+  retryOfRunId   String?    @map("retry_of_run_id") @db.Uuid
+  status         RunStatus  @default(queued)
+  attempt        Int        @default(1)
+  leaseUntil     DateTime?  @map("lease_until") @db.Timestamptz
+  errorNodeId    String?    @map("error_node_id")
+  errorKind      ErrorKind? @map("error_kind")
+  errorMessage   String?    @map("error_message")
+  queuedAt       DateTime   @default(now()) @map("queued_at") @db.Timestamptz
+  startedAt      DateTime?  @map("started_at") @db.Timestamptz
+  finishedAt     DateTime?  @map("finished_at") @db.Timestamptz
+
+  workflow     Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version      WorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  triggerEvent TriggerEvent?   @relation(fields: [triggerEventId], references: [id], onDelete: SetNull)
+  retryOf      WorkflowRun?    @relation("RunRetries", fields: [retryOfRunId], references: [id], onDelete: SetNull)
+  retries      WorkflowRun[]   @relation("RunRetries")
+  steps        RunStep[]
+  reviewTasks  ReviewTask[]
+
+  @@index([userId, queuedAt(sort: Desc)])
+  @@index([workflowId, queuedAt(sort: Desc)])
+  // + partial index on (status, lease_until) WHERE status IN ('queued','running') — see migration SQL.
+  @@map("workflow_runs")
+}
+
+/// What one node did in one run. Unique (run_id, node_id): a retry reuses the run's
+/// succeeded steps and their outputs instead of executing them again.
+model RunStep {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  runId         String     @map("run_id") @db.Uuid
+  /// Node id inside the version definition ("trigger", "node_2", ...).
+  nodeId        String     @map("node_id")
+  nodeType      String     @map("node_type")
+  /// Execution order inside the run.
+  seq           Int
+  status        StepStatus @default(pending)
+  /// Inputs after {{ }} substitution, secrets redacted.
+  inputs        Json?
+  /// Published values, referenced by later nodes as {{ node_id.key }}.
+  outputs       Json?
+  /// For condition nodes: which branch was taken, and why.
+  branchTaken   String?    @map("branch_taken")
+  conditionEval Json?      @map("condition_eval")
+  errorKind     ErrorKind? @map("error_kind")
+  errorMessage  String?    @map("error_message")
+  attempts      Int        @default(0)
+  startedAt     DateTime?  @map("started_at") @db.Timestamptz
+  finishedAt    DateTime?  @map("finished_at") @db.Timestamptz
+
+  run           WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  attemptLog    StepAttempt[]
+  aiInvocations AiInvocation[]
+  reviewTasks   ReviewTask[]
+
+  @@unique([runId, nodeId])
+  @@map("run_steps")
+}
+
+/// Backoff history of a step.
+model StepAttempt {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  stepId       String     @map("step_id") @db.Uuid
+  attemptNo    Int        @map("attempt_no")
+  status       StepStatus
+  errorKind    ErrorKind? @map("error_kind")
+  errorMessage String?    @map("error_message")
+  retryAfter   DateTime?  @map("retry_after") @db.Timestamptz
+  startedAt    DateTime   @default(now()) @map("started_at") @db.Timestamptz
+  finishedAt   DateTime?  @map("finished_at") @db.Timestamptz
+
+  step RunStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, attemptNo])
+  @@map("step_attempts")
+}
+
+/// API-level Idempotency-Key handling (e.g. "Run now", "Retry this run").
+model IdempotencyKey {
+  key         String
+  userId      String   @map("user_id") @db.Uuid
+  requestHash String   @map("request_hash")
+  statusCode  Int?     @map("status_code")
+  response    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Templates (ENG-TEMPLATES)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Template {
+  id               String             @id @default(uuid(7)) @db.Uuid
+  authorId         String?            @map("author_id") @db.Uuid
+  sourceWorkflowId String?            @map("source_workflow_id") @db.Uuid
+  slug             String             @unique
+  /// Secret token for unlisted share links.
+  shareToken       String?            @unique @map("share_token")
+  visibility       TemplateVisibility @default(private)
+  /// Localized strings: { "en": "...", "fr": "..." }.
+  title            Json
+  description      Json               @default("{}")
+  /// Workflow definition with every credentialId stripped.
+  definition       Json
+  schemaVersion    Int                @default(1) @map("schema_version")
+  /// AppDefinition ids the template needs, for "connect these services first".
+  requiredApps     String[]           @default([]) @map("required_apps")
+  useCount         Int                @default(0) @map("use_count")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  author         User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  sourceWorkflow Workflow?  @relation("TemplateSource", fields: [sourceWorkflowId], references: [id], onDelete: SetNull)
+  instances      Workflow[] @relation("TemplateInstances")
+
+  @@index([visibility])
+  // + GIN index on required_apps — see migration SQL.
+  @@map("templates")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. AI (AI-NODE, AI-PROMPT, AI-REVIEW, AI-EVAL, AI-GUARD, AI-MULTIMODAL)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Prompt {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Null = system prompt shipped with the product.
+  ownerId         String?  @map("owner_id") @db.Uuid
+  key             String
+  name            String
+  activeVersionId String?  @unique @map("active_version_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner         User?           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  versions      PromptVersion[] @relation("PromptVersions")
+  activeVersion PromptVersion?  @relation("PromptActiveVersion", fields: [activeVersionId], references: [id], onDelete: Restrict)
+  evalDatasets  EvalDataset[]
+
+  @@unique([ownerId, key])
+  @@map("prompts")
+}
+
+/// Immutable. AI nodes in a workflow definition pin a prompt_version_id.
+model PromptVersion {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  promptId     String   @map("prompt_id") @db.Uuid
+  version      Int
+  template     String
+  model        String
+  params       Json     @default("{}")
+  outputSchema Json?    @map("output_schema")
+  changelog    String?
+  createdById  String?  @map("created_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  prompt      Prompt         @relation("PromptVersions", fields: [promptId], references: [id], onDelete: Cascade)
+  activeFor   Prompt?        @relation("PromptActiveVersion")
+  createdBy   User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  invocations AiInvocation[]
+  evalRuns    EvalRun[]
+
+  @@unique([promptId, version])
+  @@map("prompt_versions")
+}
+
+/// Trace of one model call made by an AI node.
+model AiInvocation {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  stepId          String   @map("step_id") @db.Uuid
+  promptVersionId String?  @map("prompt_version_id") @db.Uuid
+  model           String
+  inputTokens     Int      @default(0) @map("input_tokens")
+  outputTokens    Int      @default(0) @map("output_tokens")
+  latencyMs       Int?     @map("latency_ms")
+  /// Redacted request/response.
+  request         Json
+  response        Json?
+  /// AI-GUARD: injection detection result and actions taken.
+  guardVerdict    Json?    @map("guard_verdict")
+  toolCalls       Json?    @map("tool_calls")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  step          RunStep        @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  promptVersion PromptVersion? @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+
+  @@index([stepId])
+  @@index([promptVersionId])
+  @@map("ai_invocations")
+}
+
+/// AI-REVIEW: a human approves, edits or rejects a node's proposed output. The run waits.
+model ReviewTask {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  runId          String       @map("run_id") @db.Uuid
+  stepId         String       @map("step_id") @db.Uuid
+  assigneeId     String       @map("assignee_id") @db.Uuid
+  status         ReviewStatus @default(pending)
+  proposedOutput Json         @map("proposed_output")
+  finalOutput    Json?        @map("final_output")
+  comment        String?
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  decidedAt      DateTime?    @map("decided_at") @db.Timestamptz
+  expiresAt      DateTime     @map("expires_at") @db.Timestamptz
+
+  run      WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step     RunStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  assignee User        @relation("ReviewAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+
+  @@index([assigneeId, status])
+  @@index([status, expiresAt])
+  @@map("review_tasks")
+}
+
+model EvalDataset {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  ownerId   String?  @map("owner_id") @db.Uuid
+  promptId  String?  @map("prompt_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  owner  User?      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  prompt Prompt?    @relation(fields: [promptId], references: [id], onDelete: SetNull)
+  cases  EvalCase[]
+  runs   EvalRun[]
+
+  @@map("eval_datasets")
+}
+
+model EvalCase {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  datasetId String   @map("dataset_id") @db.Uuid
+  input     Json
+  expected  Json?
+  tags      String[] @default([])
+
+  dataset EvalDataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  results EvalResult[]
+
+  @@index([datasetId])
+  @@map("eval_cases")
+}
+
+model EvalRun {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  datasetId       String    @map("dataset_id") @db.Uuid
+  promptVersionId String    @map("prompt_version_id") @db.Uuid
+  model           String
+  /// Aggregates: pass rate, mean score, cost.
+  summary         Json?
+  startedAt       DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz
+
+  dataset       EvalDataset   @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  promptVersion PromptVersion @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  results       EvalResult[]
+
+  @@index([datasetId])
+  @@map("eval_runs")
+}
+
+model EvalResult {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  evalRunId String   @map("eval_run_id") @db.Uuid
+  caseId    String   @map("case_id") @db.Uuid
+  output    Json?
+  score     Float?
+  passed    Boolean?
+  error     String?
+
+  evalRun EvalRun  @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+  case    EvalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([evalRunId, caseId])
+  @@map("eval_results")
+}
+
+/// File metadata only; bytes live in object storage (Azure Blob / local volume).
+model File {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  storageKey String      @unique @map("storage_key")
+  filename   String
+  mime       String
+  sizeBytes  BigInt      @map("size_bytes")
+  sha256     String
+  purpose    FilePurpose
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt  DateTime?   @map("expires_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataRequests DataRequest[]
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("files")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Admin, audit, GDPR, notifications (ENG-ADMIN, SEC-GDPR)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Append-only: the application role only gets INSERT and SELECT (see migration SQL).
+model AuditLog {
+  id         BigInt    @id @default(autoincrement())
+  actorId    String?   @map("actor_id") @db.Uuid
+  actorType  ActorType @map("actor_type")
+  /// e.g. "auth.login", "connection.revoke", "admin.user.suspend", "gdpr.erasure".
+  action     String
+  targetType String?   @map("target_type")
+  targetId   String?   @map("target_id")
+  ip         String?
+  metadata   Json      @default("{}")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+/// Proof of consent. Kept after erasure, de-identified (user_id -> NULL, subject_hash kept).
+model Consent {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  userId        String?     @map("user_id") @db.Uuid
+  /// Keyed hash of the email, so proof can be matched without keeping the address.
+  subjectHash   String      @map("subject_hash")
+  kind          ConsentKind
+  policyVersion String      @map("policy_version")
+  grantedAt     DateTime    @default(now()) @map("granted_at") @db.Timestamptz
+  withdrawnAt   DateTime?   @map("withdrawn_at") @db.Timestamptz
+  ip            String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([subjectHash])
+  @@map("consents")
+}
+
+/// GDPR export / erasure requests, and user-requested exports (e.g. run history).
+model DataRequest {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  userId      String?           @map("user_id") @db.Uuid
+  subjectHash String            @map("subject_hash")
+  type        DataRequestType
+  status      DataRequestStatus @default(pending)
+  /// Scope of an export, e.g. { "kind": "runs", "workflowId": "..." }.
+  scope       Json              @default("{}")
+  fileId      String?           @map("file_id") @db.Uuid
+  requestedAt DateTime          @default(now()) @map("requested_at") @db.Timestamptz
+  completedAt DateTime?         @map("completed_at") @db.Timestamptz
+  expiresAt   DateTime?         @map("expires_at") @db.Timestamptz
+  error       String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  file File? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@map("data_requests")
+}
+
+model PushDevice {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  token      String         @unique
+  platform   DevicePlatform
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  lastSeenAt DateTime       @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_devices")
+}
+
+/// Sent notifications; used to throttle ("at most one per workflow per hour").
+model Notification {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  workflowId String?             @map("workflow_id") @db.Uuid
+  channel    NotificationChannel
+  kind       NotificationKind
+  sentAt     DateTime            @default(now()) @map("sent_at") @db.Timestamptz
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workflow Workflow? @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([userId, workflowId, sentAt])
+  @@map("notifications")
 }
