@@ -15,7 +15,9 @@ Thumbs.db
 *.ipr
 # VS Code Java/Kotlin extension compiles into bin/
 packages/**/bin/
-spike-*/**/bin/
+spikes/**/bin/
+docs/spikes/**/bin/
+!docs/spikes/**/src/bin/
 
 # ---------- Secrets & local config ----------
 .env
