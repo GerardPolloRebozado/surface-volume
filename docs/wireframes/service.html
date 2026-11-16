@@ -1,0 +1,186 @@
+<!doctype html><html lang="en"><head><title>Service · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="canvas.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="Services"><div x-data="{
+  id: (new URLSearchParams(location.search).get('id') || ''),
+  get svc(){ return DATA.services.find(s=>s.id===this.id) || null },
+  get wfs(){ return DATA.workflows.filter(w=>wfNodes(w).some(n=>n.svc===this.id)) },
+  stateTone(st){ return st==='connected'?'ok':st==='expired'?'warn':'neutral'; },
+  toggle(){
+    if(!this.svc) return;
+    if(this.svc.state==='connected'){ this.svc.state='none'; toast(t('services.revoked',{service:this.svc.name,n:this.wfs.length}),{timeout:5000}); announce(t('services.revoked',{service:this.svc.name,n:this.wfs.length}),true); }
+    else { this.svc.state='connected'; toast(t('services.connectedToast',{service:this.svc.name,account:this.svc.account}),{timeout:5000}); announce(t('services.connectedToast',{service:this.svc.name,account:this.svc.account}),true); }
+  },
+  toggleText(){ return this.svc&&this.svc.state==='connected' ? t('services.disconnect') : t('services.connect'); }
+}" class="h-full flex flex-col">
+
+ <ui-bar heading-key="services.title" sub-key="services.lead" :sub="svc ? tx(svc.name) : ''">
+  <a class="btn btn-sm btn-ghost" :href="svc?'services.html':'services.html'" x-html="ICON('arrow-left','',14)+'<span class=\'hidden sm:inline\'>'+t('services.back')+'</span>'"></a>
+ </ui-bar>
+
+ <div class="flex-1 min-h-0 overflow-auto">
+  <template x-if="!svc">
+   <ui-empty compact icon="layers" :title="t('services.notFound')" :body="t('services.notFoundBody')">
+    <a class="btn btn-sm" href="services.html" x-text="t('services.back')"></a>
+   </ui-empty>
+  </template>
+
+  <template x-if="svc">
+   <div>
+    <div class="px-4 py-3 border-b border-line bg-card">
+     <div class="flex items-start gap-3">
+      <div class="mt-0.5 shrink-0" x-html="ICON(svcIcon(svc.id),'',40)" :style="'color:var(--svc)'"></div>
+      <div class="min-w-0 flex-1">
+       <div class="flex items-baseline gap-2">
+        <div class="text-[16px] font-semibold truncate" x-text="tx(svc.name)"></div>
+        <span class="text-[11px] text-faint num" x-text="usedIn(svc.id)"></span>
+       </div>
+       <div class="text-[11px] text-mute truncate" x-text="tx(svc.blurb)"></div>
+       <div class="mt-2 flex items-center gap-2">
+        <span class="pill !py-0 !px-1.5 !text-[9.5px]" :class="stateTone(svc.state)==='ok'?'pill-ok':stateTone(svc.state)==='warn'?'pill-warn':'pill-neutral'" x-text="stateTone(svc.state)==='ok'?t('services.stateOk',{account:svc.account}):stateTone(svc.state)==='warn'?t('services.stateExpired'):t('services.stateNone')"></span>
+        <span class="text-[10px] text-mute font-mono" x-text="(svc.triggers.length)+' · '+(svc.actions.length)"></span>
+        <button type="button" class="ml-auto btn btn-ghost btn-sm" @click="toggle()" :aria-label="toggleText()" x-text="toggleText()"></button>
+       </div>
+      </div>
+     </div>
+    </div>
+
+    <div class="px-4 pb-6 space-y-6">
+     <!-- About -->
+     <div class="rounded-xl border border-line p-4">
+      <h3 class="text-[12px] font-semibold uppercase tracking-[.08em] text-faint mb-1" x-text="t('services.about')"></h3>
+      <p class="text-[13px] leading-relaxed" x-text="tx(svc.about)"></p>
+      <div class="mt-3 flex items-center gap-2 flex-wrap">
+       <template x-for="scope in svc.scopes" :key="scope.en">
+        <span class="rounded-lg border border-line px-2 py-1 text-[11px] text-mute" x-text="tx(scope)"></span>
+       </template>
+      </div>
+      <p class="text-[11px] text-mute mt-2 leading-relaxed" x-text="t('services.authNote')"></p>
+      <a class="mt-3 inline-block text-[11.5px] text-accent hover:underline" :href="svc.docs" target="_blank" rel="noopener" x-text="t('services.docs')"></a>
+     </div>
+
+     <!-- Sample event -->
+     <template x-if="svc.sample">
+     <div class="rounded-xl border border-line p-4">
+      <h3 class="text-[12px] font-semibold uppercase tracking-[.08em] text-faint mb-2" x-text="t('services.sample')"></h3>
+      <p class="text-[11px] text-mute mb-2 leading-relaxed" x-text="t('services.sampleNote',{service:tx(svc.name)})"></p>
+      <div class="rounded-lg border border-line bg-sunken p-3 text-[11px] font-mono text-ink whitespace-pre-wrap overflow-auto" x-text="JSON.stringify(svc.sample,null,2)"></div>
+     </div>
+     </template>
+
+     <!-- Triggers & actions -->
+     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div>
+       <div class="flex items-center gap-2 mb-3">
+        <span x-html="ICON('bolt','',16)" class="shrink-0"></span>
+        <h3 class="text-[12px] font-semibold" x-text="t('services.triggers')"></h3>
+        <span class="ml-auto text-[10px] text-faint num" x-text="svc.triggers.length"></span>
+       </div>
+       <template x-if="!svc.triggers.length"><p class="text-[12px] text-mute rounded-lg border border-dashed border-line p-4 text-center" x-text="t('services.noParams')"></p></template>
+       <div class="space-y-2">
+        <template x-for="c in svc.triggers" :key="c.id">
+         <div class="rounded-lg border border-line p-3">
+          <div class="flex items-baseline gap-2 mb-1">
+           <div class="text-[11.5px] font-semibold truncate flex-1" x-text="tx(c.name)"></div>
+           <span class="pill !py-0 !px-1 !text-[9px] !text-accent" x-text="t('services.triggerLabel')"></span>
+          </div>
+          <p class="text-[10.5px] text-mute mb-2 line-clamp-2" x-text="tx(c.blurb)"></p>
+          <div class="flex items-center gap-1 text-[10px]">
+           <span class="font-mono truncate flex-1" x-text="c.params.length+' params'"></span>
+           <span class="pill !py-0 !px-1 !text-[8.5px] font-mono shrink-0" x-text="c.outputs.length+' outputs'"></span>
+          </div>
+         </div>
+        </template>
+       </div>
+      </div>
+      <div>
+       <div class="flex items-center gap-2 mb-3">
+        <span x-html="ICON('sliders','',16)" class="shrink-0"></span>
+        <h3 class="text-[12px] font-semibold" x-text="t('services.actions')"></h3>
+        <span class="ml-auto text-[10px] text-faint num" x-text="svc.actions.length"></span>
+       </div>
+       <template x-if="!svc.actions.length"><p class="text-[12px] text-mute rounded-lg border border-dashed border-line p-4 text-center" x-text="t('services.noParams')"></p></template>
+       <div class="space-y-2">
+        <template x-for="c in svc.actions" :key="c.id">
+         <div class="rounded-lg border border-line p-3">
+          <div class="flex items-baseline gap-2 mb-1">
+           <div class="text-[11.5px] font-semibold truncate flex-1" x-text="tx(c.name)"></div>
+           <span class="pill !py-0 !px-1 !text-[9px] !text-no" x-text="t('services.actionLabel')"></span>
+          </div>
+          <p class="text-[10.5px] text-mute mb-2 line-clamp-2" x-text="tx(c.blurb)"></p>
+          <div class="flex items-center gap-1 text-[10px]">
+           <span class="font-mono truncate flex-1" x-text="c.params.length+' params'"></span>
+           <span class="pill !py-0 !px-1 !text-[8.5px] font-mono shrink-0" x-text="c.outputs.length+' outputs'"></span>
+          </div>
+         </div>
+        </template>
+       </div>
+      </div>
+     </div>
+
+     <!-- Parameters detail -->
+     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <template x-for="kind in ['triggers','actions']" :key="kind">
+       <div class="rounded-xl border border-line flex flex-col min-h-[160px]">
+        <div class="border-b border-line px-4 py-3 flex items-center gap-2">
+         <span x-html="kind==='triggers'?ICON('bolt','',15):ICON('sliders','',15)"></span>
+         <span class="text-[11px] font-semibold" x-text="kind==='triggers'?t('services.triggers'):t('services.actions')"></span>
+         <span class="ml-auto text-[10px] text-faint num" x-text="svc[kind].length"></span>
+        </div>
+        <div class="overflow-auto px-3 py-2 space-y-2 scroll">
+         <template x-if="!svc[kind].length"><p class="text-[11.5px] text-mute text-center py-4" x-text="t('services.noParams')"></p></template>
+         <template x-for="c in svc[kind]" :key="c.id">
+          <div class="rounded-lg border border-line p-3">
+           <div class="flex items-baseline gap-2 mb-1">
+            <div class="text-[11.5px] font-semibold truncate flex-1" x-text="tx(c.name)"></div>
+            <span class="text-[10px] text-faint num" x-text="c.params.length+' p · '+c.outputs.length+' o'"></span>
+           </div>
+           <p class="text-[10.5px] text-mute mb-2 line-clamp-2" x-text="tx(c.blurb)"></p>
+           <div class="space-y-1">
+            <template x-for="p in c.params" :key="p.key">
+             <div class="flex items-center gap-1 text-[10.5px]">
+              <span class="font-mono truncate flex-1" x-text="tx(p.label)"></span>
+              <span class="pill !py-0 !px-1 !text-[8.5px] font-mono shrink-0" x-text="typeLabel(p.type)"></span>
+              <span x-show="p.required" class="text-bad shrink-0" x-text="t('common.required')"></span>
+             </div>
+            </template>
+            <template x-if="!c.params.length"><p class="text-[10px] text-faint font-mono" x-text="t('services.noParams')"></p></template>
+           </div>
+          </div>
+         </template>
+        </div>
+       </div>
+      </template>
+     </div>
+
+     <!-- Outputs detail -->
+     <div class="rounded-xl border border-line flex flex-col">
+      <div class="border-b border-line px-4 py-3 flex items-center gap-2">
+       <span x-html="ICON('share','',15)"></span>
+       <span class="text-[11px] font-semibold" x-text="t('services.outputs')"></span>
+      </div>
+      <div class="overflow-auto px-3 py-2 space-y-2 scroll">
+       <template x-for="c in svc.triggers.concat(svc.actions)" :key="c.id">
+        <template x-for="o in c.outputs" :key="o.key">
+         <div class="rounded-lg border border-line p-2">
+          <div class="flex items-baseline gap-2 mb-1">
+           <div class="text-[10.5px] font-semibold truncate flex-1" x-text="tx(o.label)"></div>
+           <span class="pill !py-0 !px-1 !text-[8.5px] font-mono shrink-0" x-text="typeLabel(o.type)"></span>
+          </div>
+          <div class="flex items-baseline gap-1">
+           <span class="text-[10px] font-mono text-faint truncate" x-text="'{{ '+c.id+'.'+o.key+' }}'"></span>
+           <span class="text-[10px] text-faint shrink-0" x-text="tx(o.sample)"></span>
+          </div>
+         </div>
+        </template>
+       </template>
+      </div>
+     </div>
+    </div>
+   </div>
+  </template>
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>

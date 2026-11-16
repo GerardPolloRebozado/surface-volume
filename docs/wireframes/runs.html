@@ -1,0 +1,240 @@
+<!doctype html><html lang="en"><head><title>Runs · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="canvas.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="Runs"><div x-data="flow({mode:'replay'})" x-init="init()" class="h-full flex flex-col bg-win">
+
+ <ui-bar heading-key="runs.title" sub-key="runs.lead">
+  <div class="ml-auto flex items-center gap-2">
+   <button type="button" class="btn btn-sm btn-ghost" @click="exportRun()" :disabled="!run" x-html="ICON('download','',14)+'<span class=\'hidden sm:inline\'>'+t('runs.export')+'</span>'"></button>
+   <a class="btn btn-sm" :href="run?'builder.html?wf='+run.wf:'builder.html'" x-html="ICON('sliders','',14)+'<span class=\'hidden sm:inline\'>'+t('runs.openEditor')+'</span>'"></a>
+  </div>
+ </ui-bar>
+
+ <div class="flex-1 min-h-0 overflow-auto xl:overflow-hidden">
+  <div class="flex flex-col xl:flex-row xl:h-full gap-0">
+
+   <!-- Run list, grouped by day -->
+   <aside class="xl:w-[300px] shrink-0 flex flex-col border-b xl:border-b-0 xl:border-r border-line bg-card xl:min-h-0" :aria-label="t('runs.title')">
+    <div class="shrink-0 px-4 pt-4 pb-4 border-b border-line space-y-3">
+     <div class="flex items-center gap-2">
+      <h2 class="text-[12px] font-semibold flex-1" x-text="t('runs.title')"></h2>
+      <span class="text-[11px] text-faint num" x-text="runList.length"></span>
+     </div>
+     <label class="block">
+      <span class="sr-only" x-text="t('runs.filterWorkflow')"></span>
+      <select x-model="runWf" @change="applyRunFilter()" class="select text-[12px] mt-1" style="min-height:34px" :aria-label="t('runs.filterWorkflow')">
+       <option value="" x-text="t('runs.allWorkflows')"></option>
+       <template x-for="w in DATA.workflows" :key="w.id"><option :value="w.id" x-text="tx(w.name)"></option></template>
+      </select>
+     </label>
+     <div class="seg w-full mt-2" role="group" :aria-label="t('runs.status')">
+      <button type="button" class="flex-1 justify-center !text-[11.5px]" :aria-pressed="runFilter==='all'" @click="runFilter='all';applyRunFilter()" x-text="t('runs.filterAll')"></button>
+      <button type="button" class="flex-1 justify-center !text-[11.5px]" :aria-pressed="runFilter==='failed'" @click="runFilter='failed';applyRunFilter()" x-text="t('runs.filterFailed')"></button>
+      <button type="button" class="flex-1 justify-center !text-[11.5px]" :aria-pressed="runFilter==='ok'" @click="runFilter='ok';applyRunFilter()" x-text="t('runs.filterOk')"></button>
+     </div>
+    </div>
+
+    <div class="flex-1 min-h-0 max-h-[52vh] xl:max-h-none overflow-auto scroll p-3 space-y-4">
+     <template x-if="!runList.length">
+      <div class="text-center py-8">
+       <ui-empty compact icon="activity" :title="runEmptyTitle" :body="runEmptyBody"></ui-empty>
+      </div>
+     </template>
+     <template x-for="g in runGroupList" :key="g.key">
+      <div class="space-y-2">
+       <div class="flex items-center gap-2 px-1 pb-1">
+        <span class="text-[10px] font-semibold uppercase tracking-[.08em] text-faint" x-text="g.label"></span>
+        <span class="text-[10px] text-faint num" x-text="g.runs.length"></span>
+       </div>
+       <template x-for="r in g.runs" :key="r.id">
+        <button type="button" @click="selectRun(r)" class="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left border border-transparent" :class="run&amp;&amp;run.id===r.id?'bg-fill border-accent':'hover:bg-fill hover:border-line'" :aria-current="run&amp;&amp;run.id===r.id?'true':'false'">
+         <div class="mt-[4px] shrink-0 w-[24px] h-[24px] rounded-full grid place-items-center" :style="'background:var(--'+(r.status==='ok'?'ok':'bad')+'-soft);color:var(--'+(r.status==='ok'?'ok':'bad')+')'" x-html="ICON(statusIcon(r.status),'',13)"></div>
+         <div class="min-w-0 flex-1">
+          <div class="flex items-baseline gap-2">
+           <span class="text-[12.5px] font-semibold truncate" x-text="runTitle(r)"></span>
+           <span class="ml-auto shrink-0 text-[10.5px] text-faint num" x-text="fmtTime(r.at)"></span>
+          </div>
+          <div class="flex items-baseline gap-2 mt-[1px]">
+           <span class="text-[11px] truncate flex-1" :class="r.status==='ok'?'text-mute':'text-bad'" x-text="runSummary(r)"></span>
+           <span class="shrink-0 text-[10px] text-faint num" x-text="(r.duration/1000).toFixed(1)+' s'"></span>
+          </div>
+         </div>
+        </button>
+       </template>
+      </div>
+     </template>
+    </div>
+   </aside>
+
+   <!-- Replay surface -->
+   <section class="flex-1 min-w-0 flex flex-col min-h-[600px] xl:min-h-0" :aria-label="t('runs.replay')">
+    <div class="h-12 shrink-0 flex items-center gap-3 px-4 border-b border-line bg-card">
+     <template x-if="run">
+      <span class="inline-flex items-center gap-2 min-w-0">
+       <ui-svc :id="node('trigger')?node('trigger').svc:'gmail'" :size="22"></ui-svc>
+       <span class="min-w-0">
+        <span class="block text-[13px] font-semibold truncate" x-text="runTitle(run)"></span>
+        <span class="block text-[11px] text-faint truncate num" x-text="run.id+' · '+fmtWhen(run.at)"></span>
+       </span>
+      </span>
+     </template>
+     <span x-show="run" class="pill shrink-0" :class="run?(run.status==='ok'?'pill-ok':'pill-bad'):''">
+      <span x-html="run?ICON(statusIcon(run.status),'',11):''"></span>
+      <span x-text="run?runStatusLabel(run):''"></span>
+     </span>
+     <div class="ml-auto flex items-center gap-0.5 card p-1" role="toolbar" :aria-label="t('builder.canvasLabel')">
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="zoom(0.87)" :aria-label="t('builder.zoomOut')" :title="t('builder.zoomOut')" x-html="ICON('zoom-out','',15)"></button>
+      <button type="button" class="btn btn-ghost btn-sm num !px-1.5 text-[11px] min-w-[44px]" @click="resetZoom()" :aria-label="t('builder.zoomReset')" :title="t('builder.zoomReset')" x-text="zoomPct+'%'"></button>
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="zoom(1.15)" :aria-label="t('builder.zoomIn')" :title="t('builder.zoomIn')" x-html="ICON('zoom-in','',15)"></button>
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="fit()" :aria-label="t('builder.fit')" :title="t('builder.fit')" x-html="ICON('fit','',15)"></button>
+     </div>
+    </div>
+
+    <div id="runs-canvas" class="relative flex-1 min-h-0 overflow-hidden canvas-bg p-4" x-ref="viewport" @pointerdown.self="downCanvas($event)" @pointermove.window="move($event)" @pointerup.window="up($event)" @wheel.prevent="wheel($event)" @click.self="sel=null">
+     <div class="absolute top-0 left-0" :style="worldStyle" style="width:0;height:0">
+      <svg class="absolute pointer-events-none overflow-visible" width="3200" height="1800" aria-hidden="true"><g x-html="edgeSvg"></g></svg>
+      <template x-for="n in nodes" :key="n.id">
+       <div class="node group" :id="'node-'+n.id" :data-node="n.id" :data-selected="sel===n.id" :data-run="st(n.id)" :data-dim="isPending(n.id) || (runDone &amp;&amp; !hasRunFor(n.id))" :style="'left:'+n.x+'px;top:'+n.y+'px;height:'+(isCond(n)?134:84)+'px'" role="button" tabindex="0" :aria-label="stepOf(n.id)+'. '+nameOf(n)+', '+kindLabel(n)+(st(n.id)==='fail'?', '+t('runs.filterFailed'):'')" @click.stop="sel=n.id" @keydown.enter.prevent="sel=n.id" @keydown.space.prevent="sel=n.id" @pointerdown.stop="downNode($event,n)">
+        <div class="flex items-center gap-2 px-3 pt-2.5">
+         <span class="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-[10.5px] font-semibold shrink-0" :class="sel===n.id?'bg-accent text-on-accent':'bg-fill text-mute'" x-text="stepOf(n.id)"></span>
+         <span class="shrink-0" x-html="ICON(svcIcon(n.svc),'',20)"></span>
+         <div class="min-w-0 flex-1">
+          <div class="text-[12.5px] font-semibold truncate leading-tight" x-text="nameOf(n)"></div>
+          <div class="text-[10.5px] text-mute truncate" x-text="isCond(n)?t('builder.kindCondition'):kindLabel(n)+' · '+(isTrigger(n)?t('runs.triggerStep'):svc(n.svc).name)"></div>
+         </div>
+         <span x-show="st(n.id)" class="shrink-0" :class="st(n.id)==='ok'?'tone-ok':st(n.id)==='fail'?'tone-bad':'text-faint'" x-html="ICON(st(n.id)==='ok'?'check':st(n.id)==='fail'?'x':'dot','',13)"></span>
+        </div>
+        <div x-show="!isCond(n)" class="px-3 pt-1 flex items-center gap-1.5 text-[10.5px] text-faint min-w-0">
+         <template x-if="branchOf(n.id)"><span class="pill !py-0 !px-1.5 !text-[9.5px] shrink-0" :class="branchOf(n.id)==='yes'?'!text-yes':'!text-no'" x-text="branchOf(n.id)==='yes'?t('builder.branchYes'):t('builder.branchNo')"></span></template>
+         <span class="truncate font-mono" x-text="n.id==='trigger'?t('builder.triggerPill'):(n.values?String(Object.values(n.values).find(v=>v)||'').slice(0,42):'')"></span>
+        </div>
+        <div x-show="isCond(n)" class="px-3 pt-1.5 space-y-1">
+         <div class="flex items-center gap-1 text-[11px] min-w-0"><span class="text-faint shrink-0" x-text="t('builder.if')"></span><span class="font-mono text-[10.5px] truncate text-ink" x-text="resolve(n.values.left)||'…'"></span></div>
+         <div class="flex items-center gap-1 text-[11px] min-w-0"><span class="text-faint shrink-0" x-text="t('builder.op.'+(n.values.op||'gt'))"></span><span class="font-mono text-[10.5px] truncate text-ink" x-text="resolve(n.values.right)||'…'"></span></div>
+        </div>
+       </div>
+      </template>
+     </div>
+
+     <span class="absolute left-4 bottom-4 z-20 hidden sm:flex items-center gap-2 card px-2.5 py-1.5 text-[10px] text-faint">
+      <svg width="20" height="6" aria-hidden="true"><path d="M1 3h18" stroke="var(--ok)" stroke-width="1.9"/></svg>
+      <span x-text="t('runs.legend')"></span>
+     </span>
+
+     <button type="button" x-show="nodes.length" class="absolute right-4 bottom-4 z-20 card p-1.5 hidden sm:block" :aria-label="t('builder.minimap')" :title="t('builder.minimap')" @click="minimapJump($event)" x-html="minimapSvg"></button>
+    </div>
+
+    <!-- Timeline: the run's actual order, not a decorative progress bar -->
+    <div class="shrink-0 border-t border-line bg-card p-4">
+     <div class="flex items-center gap-3">
+      <button type="button" class="btn btn-accent btn-sm btn-icon shrink-0" @click="play()" :disabled="!runSteps.length" :aria-label="playing?t('runs.pause'):t('runs.play')" :title="playing?t('runs.pause'):t('runs.play')" x-html="ICON(playing?'pause':'play','',14)"></button>
+      <div class="min-w-0">
+       <div class="text-[12px] font-semibold num truncate" x-text="curStepNo?t('runs.stepOf',{current:curStepNo,total:runSteps.length}):t('runs.replay')"></div>
+       <div class="text-[11px] text-mute truncate" x-text="playing?t('runs.live'):(run?fmtWhen(run.at):'')"></div>
+      </div>
+      <span class="ml-auto text-[11px] text-faint num shrink-0" x-text="runDuration"></span>
+     </div>
+     <div class="mt-2.5 flex items-stretch gap-1.5" role="group" :aria-label="t('runs.progress')">
+      <template x-for="(s,si) in runSteps" :key="s.id">
+       <button type="button" class="h-7 px-0.5 flex items-center rounded-md" :class="si===runIdx?'bg-fill':''" :style="'flex-grow:'+Math.max(s.ms,80)+';flex-basis:0'" @click="setProgress(si)" :aria-current="si===runIdx?'step':'false'" :aria-label="t('runs.stepOf',{current:si+1,total:runSteps.length})+': '+nameOf(node(s.id))+', '+fmtDuration(s.ms)" :title="nameOf(node(s.id))+' · '+fmtDuration(s.ms)">
+        <span class="h-[7px] w-full rounded-full" :class="s.status==='fail'?'bg-bad':(si>runIdx?'bg-line':'bg-ok')"></span>
+       </button>
+      </template>
+     </div>
+    </div>
+   </section>
+
+   <!-- Run and step detail -->
+   <aside class="xl:w-[380px] shrink-0 flex flex-col border-t xl:border-t-0 xl:border-l border-line bg-card xl:min-h-0" :aria-label="t('runs.detail')">
+    <template x-if="run">
+     <div class="flex-1 xl:overflow-auto scroll p-4 space-y-5">
+      <div class="px-0">
+       <div class="flex items-start gap-3">
+        <span class="mt-0.5 w-10 h-10 rounded-full grid place-items-center shrink-0" :style="'background:var(--'+(run.status==='ok'?'ok':'bad')+'-soft);color:var(--'+(run.status==='ok'?'ok':'bad')+')'" x-html="ICON(statusIcon(run.status),'',16)"></span>
+        <div class="min-w-0 flex-1">
+         <div class="text-[14px] font-semibold truncate" x-text="runTitle(run)"></div>
+         <div class="text-[11px] text-faint font-mono truncate" x-text="run.id+' · '+runStatusLabel(run)"></div>
+        </div>
+       </div>
+       <div class="mt-4 space-y-2 text-[12px] text-mute">
+        <div class="flex items-center gap-2"><span class="shrink-0" x-html="ICON('clock','',14)"></span><span x-text="t('runs.started',{when:fmtWhen(run.at)})"></span></div>
+        <div class="flex items-center gap-2"><span class="shrink-0" x-html="ICON('activity','',14)"></span><span x-text="t('runs.duration',{duration:runDuration})"></span></div>
+        <div class="flex items-center gap-2"><span class="shrink-0" x-html="ICON('list','',14)"></span><span x-text="t('runs.stepsReached',{done:reachedCount,total:runSteps.length})"></span></div>
+       </div>
+      </div>
+
+      <template x-if="failedStep">
+       <div class="rounded-xl p-4" style="background:var(--bad-soft)" role="alert" aria-labelledby="run-fail-title">
+        <div class="flex items-start gap-3 mb-3">
+         <span class="mt-0.5 tone-bad shrink-0" x-html="ICON('alert','',18)"></span>
+         <div class="min-w-0 flex-1">
+          <h3 id="run-fail-title" class="text-[13px] font-semibold" x-text="t('runs.failedAt',{step:nameOf(node(failedStep.id))})"></h3>
+          <p class="text-[12px] mt-1 leading-relaxed" x-text="t(failedStep.error)"></p>
+         </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+         <a :href="'service.html?id='+errorServiceId+'&reconnect=1'" class="btn btn-sm" x-html="ICON('link','',13)+'<span>'+t('runs.reconnectCta',{service:svc(errorServiceId).name})+'</span>'"></a>
+         <button type="button" class="btn btn-sm btn-ghost" @click="retryRun()" x-html="ICON('refresh','',13)+'<span>'+t('runs.retry')+'</span>'"></button>
+        </div>
+        <p class="text-[11px] mt-3 leading-relaxed" style="color:var(--mute)" x-text="t('runs.retryNote')"></p>
+       </div>
+      </template>
+
+      <div class="rounded-xl p-4 border border-line">
+       <div class="flex items-start gap-3 mb-4">
+        <ui-svc :id="cur?cur.svc:'gmail'" :size="32"></ui-svc>
+        <div class="min-w-0 flex-1">
+         <div class="text-[13.5px] font-semibold truncate" x-text="cur?nameOf(cur):''"></div>
+         <div class="text-[11px] text-mute truncate" x-text="cur?kindLabel(cur)+(curRunStep?' · '+fmtDuration(curRunStep.ms):''):''"></div>
+        </div>
+        <button type="button" class="ml-auto btn btn-ghost btn-icon btn-sm" @click="copyStep()" :disabled="!curRunStep" :aria-label="t('runs.copiedStep')" :title="t('runs.copiedStep')" x-html="ICON('copy','',14)"></button>
+       </div>
+
+       <p x-show="!cur" class="text-[12px] text-mute leading-relaxed" x-text="t('runs.selectHint')"></p>
+       <p x-show="cur&amp;&amp;!curRunStep" class="text-[12px] text-mute leading-relaxed" x-text="t('runs.notReached')"></p>
+
+       <template x-if="cur&amp;&amp;curRunStep">
+        <div class="space-y-5">
+         <div x-show="isCond(cur)" class="rounded-lg p-3" style="background:var(--fill)">
+          <div class="flex items-center gap-2 mb-2"><span x-html="ICON('branch','',14)"></span><span class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint" x-text="t('runs.conditionDecision')"></span></div>
+          <p class="text-[12px] leading-relaxed" x-text="branchExplain"></p>
+         </div>
+
+         <div x-show="!isTrigger(cur)">
+          <h3 class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint mb-2" x-text="t('runs.inputs')"></h3>
+          <div class="divide-y divide-line">
+           <template x-for="row in curInputs" :key="row[0]">
+            <div class="grid grid-cols-[104px_1fr] gap-3 py-2.5">
+             <span class="text-[10.5px] font-mono text-mute truncate" x-text="row[0]"></span>
+             <span class="text-[11.5px] font-mono break-words whitespace-pre-wrap" x-text="row[1]"></span>
+            </div>
+           </template>
+          </div>
+          <p x-show="!curInputs.length" class="text-[11.5px] text-mute mt-2" x-text="t('runs.noInputs')"></p>
+         </div>
+
+         <div x-show="!isCond(cur)">
+          <h3 class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint mb-2" x-text="isTrigger(cur)?t('runs.payload'):t('runs.outputs')"></h3>
+          <div class="divide-y divide-line">
+           <template x-for="row in curOutputs" :key="row[0]">
+            <div class="grid grid-cols-[104px_1fr] gap-3 py-2.5">
+             <span class="text-[10.5px] font-mono text-mute truncate" x-text="row[0]"></span>
+             <span class="text-[11.5px] font-mono break-words whitespace-pre-wrap" x-text="row[1]"></span>
+            </div>
+           </template>
+          </div>
+          <p x-show="!curOutputs.length" class="text-[11.5px] text-mute mt-2" x-text="t('runs.noOutputs')"></p>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </template>
+   </aside>
+
+  </div>
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>

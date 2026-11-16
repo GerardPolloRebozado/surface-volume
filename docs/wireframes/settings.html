@@ -1,0 +1,228 @@
+<!doctype html><html lang="en"><head><title>Settings · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="settings"><div class="h-full flex flex-col" x-data="{
+  theme: localStorage.getItem('area.theme') || 'system',
+  density: localStorage.getItem('area.density') || 'comfortable',
+  motion: document.documentElement.dataset.motion !== 'reduced',
+  underlineLinks: false,
+  notifFailures: true,
+  notifWeekly: false,
+  notifMobile: true,
+  mfa: true,
+  confirmDelete: true,
+  acct: DATA.account,
+  get dateSample(){ return fmtWhen(DATA.now) },
+  get themeLabel(){ return t(this.theme === 'system' ? 'common.system' : this.theme === 'dark' ? 'common.dark' : 'common.light') },
+  get densityLabel(){ return t(this.density === 'compact' ? 'settings.densityCompact' : 'settings.densityComfortable') },
+  applyTheme(v){ this.theme = v; setTheme(v) },
+  applyDensity(v){ this.density = v; setDensity(v) },
+  applyMotion(v){ this.motion = v; setMotion(v) },
+  save(){ toast(t('settings.applied')); announce(t('settings.applied'), true) },
+  resetDemo(){
+    toast(t('settings.resetDone'), { timeout: 4000 }); announce(t('settings.resetDone'), true);
+  },
+  revoke(label){ toast(t('settings.revoked', { name: label })); announce(t('settings.revoked', { name: label }), true) },
+  signOutAll(){ toast(t('common.you') + ' ' + t('settings.signOutAll')); announce(t('settings.signOutAll'), true) }
+}" class="h-full flex flex-col">
+
+ <ui-bar heading-key="settings.title">
+  <a class="btn btn-sm btn-ghost" href="index.html" x-html="ICON('arrow-left','',14)+'<span class=\'hidden sm:inline\'>'+t('common.back')+'</span>'"></a>
+ </ui-bar>
+
+ <div class="flex-1 overflow-auto scroll">
+  <div class="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+
+   <!-- Profile -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.profile')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-4">
+     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+       <span class="label" x-text="t('settings.name')"></span>
+       <input :value="tx(acct.name)" @input="save()" class="input mt-1" maxlength="60">
+       <span class="hint" x-text="t('settings.profileHint')"></span>
+      </label>
+      <label class="block">
+       <span class="label" x-text="t('settings.email')"></span>
+       <input :value="esc(acct.email)" readonly class="input mt-1 text-mute" readonly>
+      </label>
+     </div>
+     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="text-[12px] text-mute"><span class="block text-[11px] font-semibold uppercase tracking-[.06em] text-faint">Handle</span><span class="block text-[12.5px] truncate" x-text="'@'+acct.handle"></span></div>
+      <div class="text-[12px] text-mute"><span class="block text-[11px] font-semibold uppercase tracking-[.06em] text-faint">Plan</span><span class="block text-[12.5px]" x-text="tx(acct.plan)"></span></div>
+      <div class="text-[12px] text-mute"><span class="block text-[11px] font-semibold uppercase tracking-[.06em] text-faint">Joined</span><span class="block text-[12.5px] font-mono" x-text="fmtDate(acct.joined)"></span></div>
+     </div>
+     <div class="text-[12px] text-mute flex items-center gap-1">
+      <span class="shrink-0" x-html="ICON('server','',13)"></span>
+      <span x-text="t('common.server')+': '+acct.server"></span>
+     </div>
+    </div>
+   </section>
+
+   <!-- Language & appearance -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.appearance')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-5">
+     <div class="space-y-2">
+      <div class="flex items-center justify-between">
+       <span class="text-[12.5px] font-medium" x-text="t('common.theme')"></span>
+       <span class="text-[11px] text-faint" x-text="themeLabel"></span>
+      </div>
+      <div class="seg w-full" role="group" aria-label="Theme">
+       <button type="button" :aria-pressed="theme==='light'" @click="applyTheme('light')" class="flex-1 justify-center !text-[11.5px]" x-text="t('common.light')"></button>
+       <button type="button" :aria-pressed="theme==='dark'" @click="applyTheme('dark')" class="flex-1 justify-center !text-[11.5px]" x-text="t('common.dark')"></button>
+       <button type="button" :aria-pressed="theme==='system'" @click="applyTheme('system')" class="flex-1 justify-center !text-[11.5px]" x-text="t('common.system')"></button>
+      </div>
+     </div>
+     <div class="space-y-2">
+      <div class="flex items-center justify-between">
+       <span class="text-[12.5px] font-medium" x-text="t('settings.density')"></span>
+       <span class="text-[11px] text-faint" x-text="densityLabel"></span>
+      </div>
+      <div class="seg w-full" role="group" aria-label="Density">
+       <button type="button" :aria-pressed="density==='comfortable'" @click="applyDensity('comfortable')" class="flex-1 justify-center !text-[11.5px]" x-text="t('settings.densityComfortable')"></button>
+       <button type="button" :aria-pressed="density==='compact'" @click="applyDensity('compact')" class="flex-1 justify-center !text-[11.5px]" x-text="t('settings.densityCompact')"></button>
+      </div>
+     </div>
+     <label class="block">
+      <ui-switch :bind="motion" :label="t('settings.reduceMotion')" @click="motion=!motion;applyMotion(motion)" :aria-label="t('settings.reduceMotionHint')"></ui-switch>
+      <p class="hint mt-1" x-text="t('settings.reduceMotionHint')"></p>
+     </label>
+     <label class="block">
+      <ui-switch :bind="underlineLinks" :label="t('settings.underlineLinks')" @click="underlineLinks=!underlineLinks;save()" :aria-label="t('settings.underlineLinksHint')"></ui-switch>
+      <p class="hint mt-1" x-text="t('settings.underlineLinksHint')"></p>
+     </label>
+     <div class="text-[12px] text-mute flex items-center gap-1">
+      <span class="shrink-0" x-html="ICON('clock','',13)"></span>
+      <span x-text="t('settings.datePreview',{sample:dateSample})"></span>
+     </div>
+     <p class="text-[12px] text-mute leading-relaxed" x-text="t('settings.languageHint')"></p>
+     <div class="flex gap-2">
+      <button class="btn btn-sm flex-1" aria-pressed="LANG()==='en'" onclick="setLang('en')">English</button>
+      <button class="btn btn-sm flex-1" aria-pressed="LANG()==='fr'" onclick="setLang('fr')" lang="fr">Français</button>
+     </div>
+    </div>
+   </section>
+
+   <!-- Accessibility -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.accessibility')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-4">
+     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="rounded-xl border border-line p-3">
+       <div class="flex items-center gap-2 mb-2"><span x-html="ICON('keyboard','',16)"></span><span class="text-[12px] font-semibold" x-text="t('common.keyboard')"></span></div>
+       <p class="text-[12px] text-mute leading-relaxed">The editor builds entirely from the keyboard: steps, branches, data mapping and wires all work without a mouse.</p>
+      </div>
+      <div class="rounded-xl border border-line p-3">
+       <div class="flex items-center gap-2 mb-2"><span x-html="ICON('eye','',16)"></span><span class="text-[12px] font-semibold">Contrast</span></div>
+       <p class="text-[12px] text-mute leading-relaxed">WCAG AA contrast on every surface; focus rings are 3 px and never hidden.</p>
+      </div>
+     </div>
+     <label class="block">
+      <ui-switch :bind="confirmDelete" :label="t('settings.confirmDelete')" @click="confirmDelete=!confirmDelete;save()" :aria-label="t('settings.confirmDeleteHint')"></ui-switch>
+      <p class="hint mt-1" x-text="t('settings.confirmDeleteHint')"></p>
+     </label>
+    </div>
+   </section>
+
+   <!-- Notifications -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.notifications')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-4">
+     <label class="block">
+      <ui-switch :bind="notifFailures" :label="t('settings.notifFailures')" @click="notifFailures=!notifFailures;save()" :aria-label="t('settings.notifFailures')"></ui-switch>
+     </label>
+     <label class="block">
+      <ui-switch :bind="notifWeekly" :label="t('settings.notifWeekly')" @click="notifWeekly=!notifWeekly;save()" :aria-label="t('settings.notifWeekly')"></ui-switch>
+     </label>
+     <label class="block">
+      <ui-switch :bind="notifMobile" :label="t('settings.notifMobile')" @click="notifMobile=!notifMobile;save()" :aria-label="t('settings.notifMobileHint')"></ui-switch>
+      <p class="hint mt-1" x-text="t('settings.notifMobileHint')"></p>
+     </label>
+    </div>
+   </section>
+
+   <!-- Connections -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.connections')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-2">
+     <p class="text-[12px] text-mute" x-text="t('settings.connections')+'. '+t('services.footer')"></p>
+     <a class="btn btn-sm btn-ghost flex items-center gap-2" href="services.html" x-html="ICON('bolt','',15)+'<span>'+t('services.details')+'</span>'"></a>
+    </div>
+   </section>
+
+   <!-- Security & sessions -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.security')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-5">
+     <div class="space-y-2">
+      <h3 class="text-[11px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.sessions')"></h3>
+      <div class="divide-y divide-line">
+       <div class="flex items-center justify-between gap-3 px-3 py-2.5 group">
+        <div class="min-w-0 flex-1">
+         <div class="text-[12px] font-medium truncate" x-text="t('settings.sessionWeb')"></div>
+         <div class="text-[10.5px] text-mute font-mono truncate" x-text="acct.email"></div>
+         <div class="text-[10.5px] text-mute mt-0.5" x-text="t('settings.sessionLast',{when:fmtWhen(DATA.now)})"></div>
+        </div>
+        <button type="button" class="btn btn-sm text-bad" @click="revoke(t('settings.sessionWeb'))" x-text="t('settings.revoke')"></button>
+       </div>
+       <div class="flex items-center justify-between gap-3 px-3 py-2.5 group">
+        <div class="min-w-0 flex-1">
+         <div class="text-[12px] font-medium truncate" x-text="t('settings.sessionPhone')"></div>
+         <div class="text-[10.5px] text-mute font-mono truncate">+33 6 00 00 00 00</div>
+         <div class="text-[10.5px] text-mute mt-0.5" x-text="t('settings.sessionLast',{when:'2 h ago'})"></div>
+        </div>
+        <button type="button" class="btn btn-sm text-bad" @click="revoke(t('settings.sessionPhone'))" x-text="t('settings.revoke')"></button>
+       </div>
+      </div>
+     </div>
+     <label class="block">
+      <ui-switch :bind="mfa" :label="t('settings.mfa')" @click="mfa=!mfa;save()" :aria-label="t('settings.mfa')"></ui-switch>
+      <p class="hint mt-1" x-text="t('settings.mfaOn')"></p>
+     </label>
+     <div class="border-t border-line pt-4">
+      <label class="block">
+       <span class="label" x-text="t('settings.password')"></span>
+       <input type="password" class="input mt-1 w-[260px]" placeholder="••••••••">
+       <span class="hint mt-1" x-text="t('settings.passwordHint')"></span>
+      </label>
+      <button type="button" class="mt-2 btn btn-sm" x-text="t('settings.manage')"></button>
+     </div>
+     <div class="border-t border-line pt-4">
+      <button type="button" class="btn btn-sm text-bad" @click="signOutAll()" x-text="t('settings.signOutAll')"></button>
+     </div>
+    </div>
+   </section>
+
+   <!-- Prototype data -->
+   <section class="card">
+    <div class="px-4 py-3 border-b border-line">
+     <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('settings.data')"></h2>
+    </div>
+    <div class="px-4 py-4 space-y-3">
+     <p class="text-[12px] text-mute leading-relaxed" x-text="t('settings.resetHint')"></p>
+     <button type="button" class="btn btn-sm" @click="resetDemo()" x-html="ICON('refresh','',14)+'<span>'+t('settings.resetCta')+'</span>'"></button>
+     <a class="btn btn-sm btn-ghost flex items-center gap-2" href="states.html" x-html="ICON('grid','',14)+'<span>'+t('settings.openStates')+'</span>'"></a>
+    </div>
+   </section>
+
+   <p class="text-[11px] text-faint px-1" x-text="t('app.server')"></p>
+  </div>
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>

@@ -1,0 +1,529 @@
+<!doctype html><html lang="en"><head><title>Editor · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="canvas.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<div x-data="flow()" x-init="init()" class="h-screen flex flex-col bg-win">
+ <a href="#canvas" class="skip" x-text="t('nav.skip')"></a>
+
+ <header class="h-14 shrink-0 flex items-center gap-2 sm:gap-3 px-2 sm:px-4 border-b border-line bg-card relative z-40">
+  <a href="index.html" class="btn btn-ghost btn-icon" :aria-label="t('builder.backToWorkflow')" :title="t('builder.backToWorkflow')" x-html="ICON('arrow-left','',17)"></a>
+  <span class="hidden sm:inline-flex items-center gap-2.5 shrink-0"><ui-logo size="20"></ui-logo></span>
+  <span class="hidden sm:block w-px h-5 bg-line" aria-hidden="true"></span>
+  <div class="min-w-0 flex-1 flex items-center gap-2">
+   <input :value="tx(wfName)" @input="renameWorkflow($event)" class="bg-transparent border border-transparent hover:border-line focus:border-line rounded-lg px-2 py-1 text-[13.5px] font-semibold w-full max-w-[260px] truncate" :aria-label="t('builder.rename')">
+   <span class="hidden xl:inline-flex items-center gap-1.5 text-[11px] text-mute shrink-0">
+    <span class="w-1.5 h-1.5 rounded-full" :class="dirty?'bg-warn':'bg-ok'" aria-hidden="true"></span>
+    <span x-text="dirty?t('builder.unsaved'):t('builder.saved')"></span>
+   </span>
+  </div>
+  <button type="button" @click="issuesOpen=!issuesOpen" class="pill" :class="issues.length?'pill-warn':'pill-ok'" :aria-expanded="issuesOpen" aria-haspopup="dialog" :aria-label="issues.length?t('builder.issue',{n:issues.length}):t('builder.valid')">
+   <span x-html="ICON(issues.length?'alert':'check','',13)"></span><span x-text="issues.length?t('builder.issue',{n:issues.length}):t('builder.valid')"></span>
+  </button>
+  <div class="hidden sm:flex items-center gap-1">
+   <button type="button" class="btn btn-ghost btn-icon btn-sm" :disabled="!past.length" @click="undo()" :aria-label="t('builder.undo')" :title="t('builder.undo')" x-html="ICON('undo','',16)"></button>
+   <button type="button" class="btn btn-ghost btn-icon btn-sm" :disabled="!future.length" @click="redo()" :aria-label="t('builder.redo')" :title="t('builder.redo')" x-html="ICON('redo','',16)"></button>
+  </div>
+  <span class="w-px h-5 bg-line hidden sm:block" aria-hidden="true"></span>
+  <button type="button" class="btn btn-sm" @click="test&amp;&amp;test.running?stopTest():startTest()" x-html="ICON(test&amp;&amp;test.running?'pause':'play','',14)+'<span class=\'hidden md:inline\'>'+t('builder.testRun')+'</span>'"></button>
+  <button type="button" class="btn btn-accent btn-sm" @click="save()" x-html="ICON('check','',14)+'<span>'+t('builder.save')+'</span>'"></button>
+  <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="openDialog('keys-dialog')" :aria-label="t('builder.keyHelp')" :title="t('builder.keyHelp')" x-html="ICON('keyboard','',16)"></button>
+
+  <div x-show="issuesOpen" x-cloak @click.outside="issuesOpen=false" class="absolute right-3 top-[52px] w-[min(380px,calc(100vw-24px))] card p-2 z-50 rise" role="dialog" :aria-label="t('builder.issue',{n:issues.length})">
+   <div class="flex items-center gap-2 px-2 py-1.5">
+    <span class="text-[12px] font-semibold flex-1" x-text="issues.length?t('builder.issue',{n:issues.length}):t('builder.valid')"></span>
+    <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="issuesOpen=false" :aria-label="t('common.close')" x-html="ICON('x','',14)"></button>
+   </div>
+   <div class="max-h-[50vh] overflow-auto scroll space-y-0.5">
+    <template x-if="!issues.length"><div class="px-2 py-4 text-[12px] text-mute" x-text="t('builder.valid')"></div></template>
+    <template x-for="(it,ii) in issues" :key="ii">
+     <button type="button" @click="issueClick(it)" class="w-full flex items-start gap-2.5 px-2 py-2 rounded-lg hover:bg-fill text-left">
+      <span class="mt-0.5 shrink-0 tone-warn" x-html="ICON('alert','',14)"></span>
+      <span class="text-[12px] leading-snug flex-1" x-text="it.text"></span>
+      <span class="text-faint mt-0.5" x-html="ICON('chevron-right','',13)"></span>
+     </button>
+    </template>
+   </div>
+  </div>
+ </header>
+
+ <div class="flex-1 min-h-0 flex">
+
+  <!-- Steps outline: the keyboard-complete view of the same graph -->
+  <aside class="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-line bg-card" :aria-label="t('builder.steps')">
+   <div class="flex items-center gap-2 px-3 pt-3 pb-2">
+    <h2 class="text-[12px] font-semibold flex-1" x-text="t('builder.steps')"></h2>
+    <span class="text-[11px] text-faint num" x-text="stepCount"></span>
+    <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="openPalette()" :aria-label="t('builder.addStep')" :title="t('builder.addStep')" x-html="ICON('plus','',15)"></button>
+   </div>
+   <div class="flex-1 overflow-auto scroll px-2 pb-3 space-y-0.5">
+    <template x-for="(r,ri) in outlineRows" :key="ri">
+     <button type="button" @click="r.n?focusNode(r.n.id):openPalette(r.cond,null,r.port)" class="w-full flex items-center gap-2 pr-2 py-[7px] rounded-lg text-left" :class="r.n?(sel===r.n?.id?'bg-fill':'hover:bg-fill'):'border border-dashed border-line text-faint hover:border-accent hover:text-accent'" :style="'padding-left:'+(6+r.depth*14)+'px'">
+      <span class="w-[18px] h-[18px] rounded-[5px] grid place-items-center text-[10px] font-semibold shrink-0" :class="r.n?(sel===r.n?.id?'bg-accent text-on-accent':'bg-fill text-mute'):'bg-transparent'" x-text="r.n?stepOf(r.n.id):'+'"></span>
+      <span class="shrink-0" x-html="r.n?ICON(svcIcon(r.n.svc),'',14):''"></span>
+      <span class="text-[12px] truncate flex-1" :class="r.n&amp;&amp;isIssueNode(r.n.id)?'text-warn':''" x-text="r.n?nameOf(r.n):(r.empty==='yes'?t('builder.outlineYes'):t('builder.outlineNo'))+' · '+t('builder.addStep')"></span>
+      <span class="pill !px-1.5 !py-0.5 !text-[9.5px] shrink-0" :style="r.tag?'':'padding:0;width:0;overflow:hidden'" :class="r.tag==='yes'?'!text-yes':'!text-no'" x-text="r.tag?(r.tag==='yes'?t('builder.outlineYes'):t('builder.outlineNo')):''"></span>
+     </button>
+    </template>
+   </div>
+   <div class="border-t border-line p-2.5">
+    <p class="text-[10.5px] text-faint leading-relaxed" x-text="t('builder.stepsHint')"></p>
+    <button type="button" class="mt-2 w-full btn btn-sm btn-ghost justify-start" @click="openDialog('keys-dialog')" x-html="ICON('keyboard','',14)+'<span>'+t('builder.keyHelp')+'</span><kbd class=\'kbd ml-auto\'>?</kbd>'"></button>
+   </div>
+  </aside>
+
+  <!-- Canvas -->
+  <section id="canvas" class="relative flex-1 min-w-0 flex flex-col" :aria-label="t('builder.canvasLabel')">
+   <div class="relative flex-1 min-h-0 overflow-hidden canvas-bg" x-ref="viewport" @pointerdown.self="downCanvas($event)" @pointermove.window="move($event)" @pointerup.window="up($event)" @wheel.prevent="wheel($event)" @click.self="sel=null;selectedEdge=null">
+    <div class="absolute top-0 left-0" :style="worldStyle" style="width:0;height:0">
+     <svg class="absolute pointer-events-none overflow-visible" width="3200" height="1800" aria-hidden="true">
+      <g x-html="edgeSvg"></g>
+      <g x-html="traceSvg"></g>
+      <line x-show="link" :x1="link?outp(node(link.from),link.port).x:0" :y1="link?outp(node(link.from),link.port).y:0" :x2="link?link.x:0" :y2="link?link.y:0" stroke="var(--accent)" stroke-width="1.8" stroke-dasharray="3 5" stroke-linecap="round"></line>
+     </svg>
+
+     <template x-for="(e,i) in edges" :key="i">
+      <div class="absolute z-[2]" :style="'left:'+midOf(e).x+'px;top:'+midOf(e).y+'px'">
+       <button type="button" class="absolute -translate-x-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full border border-line-strong bg-card text-faint grid place-items-center opacity-55 hover:opacity-100 hover:border-accent hover:text-accent" :aria-label="t('builder.edgeLabel',{from:nameOf(node(e.from)),to:nameOf(node(e.to))})" @mouseenter="hoverEdge=i" @mouseleave="hoverEdge=null" @click.stop="selectedEdge=selectedEdge===i?null:i" x-html="ICON('link','',9)"></button>
+      </div>
+     </template>
+
+     <template x-for="n in nodes" :key="n.id">
+      <div class="node group" :id="'node-'+n.id" :data-node="n.id" :data-selected="sel===n.id" :data-invalid="isIssueNode(n.id)" :data-run="st(n.id)" :data-dim="test &amp;&amp; test.seen.length &amp;&amp; !test.seen.includes(n.id)" :style="'left:'+n.x+'px;top:'+n.y+'px;height:'+(isCond(n)?134:84)+'px'" role="button" tabindex="0" :aria-label="stepOf(n.id)+'. '+nameOf(n)+', '+kindLabel(n)" @click.stop="sel=n.id;selectedEdge=null;tab='configure'" @keydown="nodeKey($event,n)" @pointerdown.stop="downNode($event,n)">
+       <div class="flex items-center gap-2 px-3 pt-2.5">
+        <span class="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-[10.5px] font-semibold shrink-0" :class="sel===n.id?'bg-accent text-on-accent':'bg-fill text-mute'" x-text="stepOf(n.id)"></span>
+        <ui-svc :id="n.svc" :size="24"></ui-svc>
+        <div class="min-w-0 flex-1">
+         <div class="text-[12.5px] font-semibold truncate leading-tight" x-text="nameOf(n)"></div>
+         <div class="text-[10.5px] text-mute truncate" x-text="isCond(n)?t('builder.kindCondition'):kindLabel(n)+' · '+svc(n.svc).name"></div>
+        </div>
+        <span x-show="isIssueNode(n.id)" class="tone-warn shrink-0" x-html="ICON('alert','',14)"></span>
+        <span x-show="st(n.id)" class="shrink-0" :class="st(n.id)==='ok'?'tone-ok':st(n.id)==='fail'?'tone-bad':'text-faint'" x-html="ICON(st(n.id)==='ok'?'check':st(n.id)==='fail'?'x':'dot','',13)"></span>
+       </div>
+
+       <div x-show="!isCond(n)" class="px-3 pt-1 flex items-center gap-1.5 text-[10.5px] text-faint min-w-0">
+        <template x-if="branchOf(n.id)"><span class="pill !py-0 !px-1.5 !text-[9.5px] shrink-0" :class="branchOf(n.id)==='yes'?'!text-yes':'!text-no'" x-text="branchOf(n.id)==='yes'?t('builder.branchYes'):t('builder.branchNo')"></span></template>
+        <span class="truncate font-mono" x-text="n.id==='trigger'?t('builder.triggerPill'):(n.values?String(Object.values(n.values).find(v=>v)||'').slice(0,42):'')"></span>
+       </div>
+
+       <div x-show="isCond(n)" class="px-3 pt-1.5 space-y-1">
+        <div class="flex items-center gap-1 text-[11px] min-w-0">
+         <span class="text-faint shrink-0" x-text="t('builder.if')"></span>
+         <span class="font-mono text-[10.5px] truncate text-ink" x-text="resolve(n.values.left)||'…'"></span>
+        </div>
+        <div class="flex items-center gap-1 text-[11px] min-w-0">
+         <span class="text-faint shrink-0" x-text="t('builder.op.'+(n.values.op||'gt'))"></span>
+         <span class="font-mono text-[10.5px] truncate text-ink" x-text="resolve(n.values.right)||'…'"></span>
+        </div>
+        <div class="flex items-center justify-between text-[9.5px] text-mute pt-0.5" aria-hidden="true">
+         <span class="text-yes" x-text="t('builder.branchYes')"></span><span class="text-no" x-text="t('builder.branchNo')"></span>
+        </div>
+       </div>
+
+       <span x-show="!isTrigger(n)" class="port" style="left:-7px;top:21px" :data-accept="link&amp;&amp;link.target===n.id" aria-hidden="true"></span>
+       <template x-if="isCond(n)">
+        <span>
+         <button type="button" tabindex="-1" class="port" style="right:-7px;top:57px" :data-live="link&amp;&amp;link.from===n.id&amp;&amp;link.port==='yes'" :aria-label="t('builder.connectTo')" @pointerdown.prevent.stop="startLink($event,n,'yes')"></button>
+         <button type="button" tabindex="-1" class="port" style="right:-7px;top:83px" :data-live="link&amp;&amp;link.from===n.id&amp;&amp;link.port==='no'" :aria-label="t('builder.connectTo')" @pointerdown.prevent.stop="startLink($event,n,'no')"></button>
+        </span>
+       </template>
+       <button x-show="!isCond(n)" type="button" tabindex="-1" class="port" style="right:-7px;top:21px" :data-live="link&amp;&amp;link.from===n.id" :aria-label="t('builder.connectTo')" @pointerdown.prevent.stop="startLink($event,n,'out')"></button>
+      </div>
+     </template>
+
+     <div x-show="selectedEdge!==null" x-cloak class="absolute z-[15] card p-1 flex items-center gap-1" :style="selectedEdge!==null?'left:'+(midOf(edges[selectedEdge]).x+12)+'px;top:'+(midOf(edges[selectedEdge]).y+10)+'px':''" role="toolbar">
+      <button type="button" class="btn btn-sm btn-ghost" @click="openPalette(null,selectedEdge)" x-html="ICON('plus','',13)+'<span>'+t('builder.insertHere')+'</span>'"></button>
+      <button type="button" class="btn btn-sm btn-ghost text-bad" @click="removeEdge(edges[selectedEdge]);selectedEdge=null" x-html="ICON('trash','',13)+'<span>'+t('builder.removeEdge')+'</span>'"></button>
+     </div>
+    </div>
+
+    <!-- Canvas toolbar -->
+    <div class="absolute left-3 top-3 z-20 flex items-center gap-0.5 card p-1" role="toolbar" :aria-label="t('builder.canvasLabel')">
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="openPalette()" :aria-label="t('builder.addStep')" :title="t('builder.addStep')" x-html="ICON('plus','',15)"></button>
+     <span class="w-px h-4 bg-line mx-0.5" aria-hidden="true"></span>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="zoom(0.87)" :aria-label="t('builder.zoomOut')" :title="t('builder.zoomOut')" x-html="ICON('zoom-out','',15)"></button>
+     <button type="button" class="btn btn-ghost btn-sm num !px-1.5 text-[11px] min-w-[44px]" @click="resetZoom()" :aria-label="t('builder.zoomReset')" :title="t('builder.zoomReset')" x-text="zoomPct+'%'"></button>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="zoom(1.15)" :aria-label="t('builder.zoomIn')" :title="t('builder.zoomIn')" x-html="ICON('zoom-in','',15)"></button>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="fit()" :aria-label="t('builder.fit')" :title="t('builder.fit')" x-html="ICON('fit','',15)"></button>
+     <span class="w-px h-4 bg-line mx-0.5" aria-hidden="true"></span>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" :aria-pressed="snap" @click="snap=!snap" :aria-label="t('builder.snap')" :title="t('builder.snap')" :class="snap?'text-accent':''" x-html="ICON('grid','',15)"></button>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm" :aria-pressed="dataLinks" @click="dataLinks=!dataLinks" :aria-label="t('builder.dataToggle')" :title="t('builder.dataToggle')" :class="dataLinks?'text-accent':''" x-html="ICON('split','',15)"></button>
+    </div>
+
+    <div class="absolute right-3 top-3 z-20 flex items-center gap-2">
+     <span class="hidden md:flex items-center gap-3 card px-2.5 py-1.5 text-[10.5px] text-mute">
+      <span class="flex items-center gap-1.5"><svg width="20" height="6" aria-hidden="true"><path d="M1 3h18" stroke="var(--line-strong)" stroke-width="1.9"/></svg><span x-text="t('builder.kindAction')"></span></span>
+      <span class="flex items-center gap-1.5"><svg width="20" height="6" aria-hidden="true"><path d="M1 3h18" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="2 6"/></svg><span x-text="t('builder.data')"></span></span>
+     </span>
+     <button type="button" class="btn btn-ghost btn-icon btn-sm card" @click="openPalette()" :aria-label="t('builder.addStep')" :title="t('builder.addStep')" x-html="ICON('plus','',16)"></button>
+    </div>
+
+    <!-- Test run strip -->
+    <div x-show="test" x-cloak class="absolute left-1/2 -translate-x-1/2 bottom-3 w-[min(660px,calc(100%-24px))] card p-2.5 z-30 rise" role="status">
+     <div class="flex items-center gap-2.5">
+      <span class="w-7 h-7 rounded-lg grid place-items-center shrink-0" :style="test&amp;&amp;test.failed?'background:var(--bad-soft);color:var(--bad)':'background:var(--accent-soft);color:var(--accent)'" x-html="ICON(test&amp;&amp;test.failed?'alert':test&amp;&amp;test.done?'check':'play','',14)"></span>
+      <div class="min-w-0 flex-1">
+       <div class="text-[12px] font-semibold" x-text="t('builder.runTitle')"></div>
+       <div class="text-[11px] text-mute truncate" x-text="test&amp;&amp;test.failed?t('builder.runFailed',{name:nameOf(node(test.failed.node))}):test&amp;&amp;test.done?t('builder.runDone',{duration:(test.total/1000).toFixed(1)+' s'}):t('builder.testing')"></div>
+      </div>
+      <div class="hidden sm:flex items-center gap-1" aria-hidden="true">
+       <template x-for="(p,pi) in test?test.path:[]" :key="pi">
+        <span class="w-2 h-2 rounded-full" :class="pi<test.idx?'bg-ok':'bg-fill'" :title="nameOf(node(p.id))"></span>
+       </template>
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" @click="test&amp;&amp;test.running?stopTest():startTest()" x-html="ICON(test&amp;&amp;test.running?'pause':'refresh','',13)+'<span>'+t(test&amp;&amp;test.running?'builder.stopRun':'builder.runAgain')+'</span>'"></button>
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="stopTest()" :aria-label="t('builder.stopRun')" x-html="ICON('x','',14)"></button>
+     </div>
+    </div>
+
+    <!-- Minimap -->
+    <button type="button" x-ref="minimap" x-show="nodes.length" class="absolute right-3 bottom-3 z-20 card p-1.5 hidden sm:block" :aria-label="t('builder.minimap')" :title="t('builder.minimap')" @click="minimapJump($event)">
+     <span x-html="minimapSvg"></span>
+    </button>
+   </div>
+  </section>
+
+  <!-- Inspector -->
+  <aside class="hidden md:flex w-[340px] shrink-0 flex-col border-l border-line bg-card" :aria-label="t('builder.configure')">
+   <template x-if="!cur">
+    <div class="flex-1 grid place-items-center p-6">
+     <div class="text-center">
+      <span class="w-11 h-11 rounded-xl grid place-items-center mx-auto text-mute" style="background:var(--fill)" x-html="ICON('list','',20)"></span>
+      <p class="text-[12.5px] text-mute mt-3 max-w-[24ch] mx-auto" x-text="t('builder.inspectHint')"></p>
+     </div>
+    </div>
+   </template>
+   <template x-if="cur">
+    <div class="flex-1 min-h-0 flex flex-col">
+     <div class="px-4 pt-4 pb-3 border-b border-line">
+      <div class="flex items-start gap-2.5">
+       <ui-svc :id="cur.svc" :size="32"></ui-svc>
+       <div class="min-w-0 flex-1">
+        <div class="text-[13.5px] font-semibold truncate" x-text="nameOf(cur)"></div>
+        <div class="text-[11px] text-mute truncate" x-text="kindLabel(cur)+' · '+svc(cur.svc).name"></div>
+       </div>
+       <button type="button" class="btn btn-ghost btn-icon btn-sm -mt-0.5" @click="sel=null" :aria-label="t('builder.closePanel')" x-html="ICON('x','',15)"></button>
+      </div>
+      <div class="seg flex w-full mt-3" role="tablist" :aria-label="t('builder.configure')">
+       <button type="button" role="tab" class="flex-1 justify-center" :aria-selected="tab==='configure'" :tabindex="tab==='configure'?0:-1" @click="tab='configure'" x-text="t('builder.configure')"></button>
+       <button type="button" role="tab" class="flex-1 justify-center" :aria-selected="tab==='data'" :tabindex="tab==='data'?0:-1" @click="tab='data'" x-text="t('builder.data')+' · '+targetsData.length"></button>
+       <button type="button" role="tab" class="flex-1 justify-center" :aria-selected="tab==='output'" :tabindex="tab==='output'?0:-1" @click="tab='output'" x-text="t('builder.output')"></button>
+      </div>
+     </div>
+
+     <!-- Configure -->
+     <div x-show="tab==='configure'" class="flex-1 overflow-auto scroll px-4 py-4 space-y-4" role="tabpanel">
+      <label class="block">
+       <span class="label" x-text="t('builder.name')"></span>
+       <input :value="cur.name?tx(cur.name):''" @input="renameNode($event)" class="input mt-1" maxlength="60">
+       <span class="hint" x-text="t('builder.nameHint')"></span>
+      </label>
+
+      <template x-if="isCond(cur)">
+       <div class="space-y-3 rounded-xl p-3" style="background:var(--fill)">
+        <div class="text-[12px] font-semibold" x-text="t('builder.conditionTitle')"></div>
+        <p class="text-[11px] text-mute" x-text="t('builder.conditionLead')"></p>
+        <label class="block">
+         <span class="label" x-text="t('builder.conditionField')"></span>
+         <div class="flex gap-1 mt-1">
+          <input id="'f-'+cur.id+'-left'" x-model="cur.values.left" @input="dirty=true" @focus="trackCaret($event,'left')" class="input flex-1 font-mono text-[12px]" placeholder="{{ node_2.amount }}">
+          <button type="button" class="btn btn-icon shrink-0" @click="openMap('left')" :aria-label="t('builder.dataMapHere',{field:t('builder.conditionField')})" :title="t('builder.dataMapHere',{field:t('builder.conditionField')})" x-html="ICON('map','',15)"></button>
+         </div>
+         <span class="hint font-mono" x-show="previewOf(cur,'left')" x-text="t('builder.preview')+': '+previewOf(cur,'left')"></span>
+        </label>
+        <label class="block">
+         <span class="label" x-text="t('builder.conditionOperator')"></span>
+         <select x-model="cur.values.op" @change="dirty=true" class="select mt-1 w-full">
+          <option value="gt" x-text="t('builder.op.gt')"></option>
+          <option value="gte" x-text="t('builder.op.gte')"></option>
+          <option value="lt" x-text="t('builder.op.lt')"></option>
+          <option value="lte" x-text="t('builder.op.lte')"></option>
+          <option value="eq" x-text="t('builder.op.eq')"></option>
+          <option value="contains" x-text="t('builder.op.contains')"></option>
+          <option value="empty" x-text="t('builder.op.empty')"></option>
+          <option value="notEmpty" x-text="t('builder.op.notEmpty')"></option>
+         </select>
+        </label>
+        <label class="block" x-show="cur.values.op!=='empty'&amp;&amp;cur.values.op!=='notEmpty'">
+         <span class="label" x-text="t('builder.conditionValue')"></span>
+         <div class="flex gap-1 mt-1">
+          <input x-model="cur.values.right" @input="dirty=true" @focus="trackCaret($event,'right')" class="input flex-1 font-mono text-[12px]" placeholder="5">
+          <button type="button" class="btn btn-icon shrink-0" @click="openMap('right')" :aria-label="t('builder.dataMapHere',{field:t('builder.conditionValue')})" x-html="ICON('map','',15)"></button>
+         </div>
+        </label>
+        <div class="rounded-lg bg-card border border-line px-2.5 py-2 text-[11.5px] leading-relaxed">
+         <span class="font-mono text-[11px]" x-text="conditionPreview||t('builder.conditionUnset')"></span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+         <button type="button" class="btn btn-sm justify-center" @click="openPalette(cur.id,null,'yes')" x-html="ICON('plus','',12)+'<span>'+t('builder.outlineYes')+'</span>'"></button>
+         <button type="button" class="btn btn-sm justify-center" @click="openPalette(cur.id,null,'no')" x-html="ICON('plus','',12)+'<span>'+t('builder.outlineNo')+'</span>'"></button>
+        </div>
+       </div>
+      </template>
+
+      <template x-if="!isCond(cur)">
+       <div class="space-y-3">
+        <template x-for="p in paramsOf(cur)" :key="p.key">
+         <div class="rounded-xl border border-line p-3">
+          <div class="flex items-center gap-1.5">
+           <label class="label flex-1" :for="'f-'+cur.id+'-'+p.key" x-text="paramLabel(p)"></label>
+           <span x-show="p.required" class="pill !py-0 !px-1.5 !text-[9.5px] !text-warn" x-text="t('common.required')"></span>
+           <span class="pill !py-0 !px-1.5 !text-[9.5px] font-mono" x-text="typeLabel(p.type)"></span>
+          </div>
+          <template x-if="p.type==='select'">
+           <select :id="'f-'+cur.id+'-'+p.key" :value="cur.values[p.key]" @change="cur.values[p.key]=$event.target.value;dirty=true" class="select mt-1.5 w-full">
+            <template x-for="o in p.options||[]" :key="o.value"><option :value="o.value" :selected="cur.values[p.key]===o.value" x-text="tx(o.label)"></option></template>
+           </select>
+          </template>
+          <template x-if="p.type!=='select'&amp;&amp;p.type!=='textarea'">
+           <input :id="'f-'+cur.id+'-'+p.key" x-model="cur.values[p.key]" @input="dirty=true" @focus="trackCaret($event,p.key)" :placeholder="p.placeholder||''" :class="(p.key==='text'||p.key==='body'||p.key==='description'||p.key==='note')?'':'font-mono text-[12px]'" class="input mt-1.5 w-full">
+          </template>
+          <template x-if="p.type==='textarea'">
+           <textarea :id="'f-'+cur.id+'-'+p.key" x-model="cur.values[p.key]" @input="dirty=true" @focus="trackCaret($event,p.key)" rows="3" class="textarea mt-1.5 w-full"></textarea>
+          </template>
+
+          <div class="flex flex-wrap gap-1 mt-1.5">
+           <template x-for="(r,ri) in refsOfValue(cur,p.key)" :key="r.id+r.key+ri">
+            <button type="button" class="ref group" @click="removeRefAt(p.key,ri)" :title="t('builder.dataRemoved',{field:paramLabel(p)})">
+             <span x-text="'{{ '+r.id+'.'+r.key+' }}'"></span>
+             <span class="opacity-60 group-hover:opacity-100" x-html="ICON('x','',10)"></span>
+            </button>
+           </template>
+           <span x-show="previewOf(cur,p.key)" class="text-[10.5px] text-faint font-mono truncate max-w-full" x-text="'→ '+previewOf(cur,p.key)"></span>
+          </div>
+          <div class="flex items-center gap-2 mt-1.5">
+           <span class="hint !mt-0 flex-1 font-mono truncate" x-show="hasRefs(cur.values[p.key])" x-text="t('builder.previewHint')"></span>
+           <button type="button" class="text-[11px] text-accent hover:underline shrink-0 ml-auto" @click="openMap(p.key)" x-text="t('builder.dataMapHere',{field:paramLabel(p)})"></button>
+          </div>
+         </div>
+        </template>
+        <p x-show="!paramsOf(cur).length" class="text-[11.5px] text-mute rounded-xl border border-line p-3" x-text="t('builder.dataNoTargets')"></p>
+       </div>
+      </template>
+
+      <div class="border-t border-line pt-3" x-show="!isTrigger(cur)">
+       <button type="button" class="btn btn-sm text-bad" @click="requestDelete()" x-html="ICON('trash','',14)+'<span>'+t('builder.deleteStep')+'</span>'"></button>
+      </div>
+     </div>
+
+     <!-- Data mapping -->
+     <div x-show="tab==='data'" x-cloak class="flex-1 min-h-0 flex flex-col" role="tabpanel">
+      <div class="px-4 pt-3 pb-2 border-b border-line">
+       <p class="text-[11.5px] text-mute leading-relaxed" x-text="t('builder.dataLead')"></p>
+       <div class="flex items-center gap-2 mt-2">
+        <div class="relative flex-1">
+         <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" x-html="ICON('search','',14)"></span>
+         <input x-model="map.q" class="input pl-8 text-[12px]" :placeholder="t('builder.dataSearch')" :aria-label="t('builder.dataSearch')">
+        </div>
+        <button type="button" class="btn btn-icon btn-sm" :aria-pressed="dataLinks" @click="dataLinks=!dataLinks" :aria-label="t('builder.dataToggle')" :class="dataLinks?'text-accent':''" x-html="ICON('split','',15)"></button>
+       </div>
+       <div x-show="map.source" class="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11.5px]" style="background:var(--accent-soft);color:var(--accent)">
+        <span class="shrink-0" x-html="ICON('map','',13)"></span>
+        <span class="flex-1 truncate" x-text="t('builder.dataPicking',{value:map.source?map.source.step+'.'+map.source.key:''})"></span>
+        <button type="button" class="underline shrink-0" @click="clearPick()" x-text="t('builder.dataCancelPick')"></button>
+       </div>
+       <div x-show="map.target" class="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11.5px]" style="background:var(--accent-soft);color:var(--accent)">
+        <span class="shrink-0" x-html="ICON('map','',13)"></span>
+        <span class="flex-1 truncate" x-text="t('builder.dataTargeting',{field:(targetsData.find(x=>x.key===map.target)||{label:''}).label})"></span>
+        <button type="button" class="underline shrink-0" @click="clearPick()" x-text="t('builder.dataCancelPick')"></button>
+       </div>
+       <p x-show="!map.source&amp;&amp;!map.target" class="text-[10.5px] text-faint mt-1.5" x-text="t('builder.dataPickSource')"></p>
+      </div>
+
+      <div class="flex-1 overflow-auto scroll px-4 py-3 space-y-4">
+       <div>
+        <div class="flex items-center gap-2 mb-1.5">
+         <h3 class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint flex-1" x-text="t('builder.dataSources')"></h3>
+         <span class="text-[10.5px] text-faint num" x-text="t('builder.refCount',{n:totalRefs()})"></span>
+        </div>
+        <template x-if="!sourcesData.length"><p class="text-[11.5px] text-mute rounded-lg border border-dashed border-line p-3" x-text="sourcesFor(sel).length?t('builder.dataNone',{query:map.q}):t('builder.dataNoSources')"></p></template>
+        <div class="space-y-2">
+         <template x-for="g in sourcesData" :key="g.id">
+          <div class="rounded-lg border border-line overflow-hidden">
+           <div class="flex items-center gap-2 px-2 py-1.5" style="background:var(--fill)">
+            <span class="w-[17px] h-[17px] rounded-[5px] bg-card grid place-items-center text-[9.5px] font-semibold shrink-0" x-text="g.step"></span>
+            <span x-html="ICON(svcIcon(g.svc),'',13)"></span>
+            <span class="text-[11.5px] font-semibold truncate flex-1" x-text="g.name"></span>
+           </div>
+           <template x-for="o in g.outputs" :key="o.key">
+            <button type="button" draggable="true" @dragstart="dragSource($event,g,o)" @dragend="map.dragging=false" @click="pickSource(g,o)" class="w-full flex items-center gap-1.5 px-2 py-1.5 text-left border-t border-line hover:bg-fill" :style="map.source&amp;&amp;map.source.id===g.id&amp;&amp;map.source.key===o.key?'background:var(--accent-soft)':''" :data-active="map.source&amp;&amp;map.source.id===g.id&amp;&amp;map.source.key===o.key">
+             <span class="text-[11.5px] flex-1 truncate" x-text="tx(o.label)"></span>
+             <span class="pill !py-0 !px-1 !text-[9px] font-mono shrink-0" x-text="typeLabel(o.type)"></span>
+             <span class="text-[10px] text-faint font-mono truncate max-w-[76px] shrink-0" x-text="String(o.value).slice(0,18)"></span>
+             <span class="text-[9.5px] text-faint shrink-0" x-show="refCount(g.id,o.key)" x-text="refCount(g.id,o.key)+'×'"></span>
+            </button>
+           </template>
+          </div>
+         </template>
+        </div>
+       </div>
+
+       <div>
+        <h3 class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint mb-1.5" x-text="t('builder.dataTargets')"></h3>
+        <template x-if="!targetsData.length"><p class="text-[11.5px] text-mute rounded-lg border border-dashed border-line p-3" x-text="t('builder.dataNoTargets')"></p></template>
+        <div class="space-y-2">
+         <template x-for="tgt in targetsData" :key="tgt.key">
+          <div class="slot" :id="'slot-'+tgt.key" :data-slot="tgt.key" :data-over="map.hover===tgt.key" :data-active="map.target===tgt.key" role="button" tabindex="0" @click="pickTarget(tgt)" @keydown.enter.prevent="pickTarget(tgt)" @dragover="dragOverSlot($event,tgt.key)" @drop="dropTarget($event,tgt.key)" @dragleave="map.hover=null">
+           <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-semibold truncate flex-1" x-text="tgt.label"></span>
+            <span x-show="tgt.required" class="text-bad" aria-hidden="true" x-html="ICON('dot','',6)"></span>
+            <span class="pill !py-0 !px-1 !text-[9px] font-mono" x-text="typeLabel(tgt.type)"></span>
+           </div>
+           <div class="mt-1 flex flex-wrap gap-1 items-center min-h-[18px]">
+            <template x-for="(r,ri) in tgt.refs" :key="r.id+r.key+ri">
+             <span class="ref"><b x-text="r.id"></b><span x-text="'.'+r.key"></span></span>
+            </template>
+            <span x-show="!tgt.refs.length" class="text-[10.5px] text-faint" x-text="tgt.value?String(tgt.value).slice(0,40):t('builder.dataEmptySlot')"></span>
+            <span x-show="tgt.refs.length" class="text-[10px] text-faint font-mono truncate" x-text="'→ '+tgt.preview"></span>
+           </div>
+           <div class="flex items-center gap-2 mt-1">
+            <span x-show="tgt.used" class="text-[9.5px] text-accent" x-text="t('builder.dataUsed',{n:tgt.used})"></span>
+            <span class="ml-auto text-[10px] text-mute" x-text="t('builder.dataEditField')"></span>
+           </div>
+          </div>
+         </template>
+        </div>
+       </div>
+
+       <p class="text-[10.5px] text-faint" x-show="dataLinks" x-text="t('builder.dataLegend')"></p>
+      </div>
+     </div>
+
+     <!-- Output -->
+     <div x-show="tab==='output'" x-cloak class="flex-1 overflow-auto scroll px-4 py-4 space-y-4" role="tabpanel">
+      <div>
+       <h3 class="text-[12px] font-semibold" x-text="t('builder.outputsTitle')"></h3>
+       <p class="text-[11px] text-mute mt-0.5 leading-relaxed" x-text="t('builder.outputsLead')"></p>
+       <div class="mt-2 space-y-1.5">
+        <template x-if="!outputsOf(cur).length"><p class="text-[11.5px] text-mute rounded-lg border border-dashed border-line p-3" x-text="t('builder.outputsEmpty')"></p></template>
+        <template x-for="o in outputsOf(cur)" :key="o.key">
+         <div class="rounded-lg border border-line px-2.5 py-2">
+          <div class="flex items-center gap-1.5">
+           <span class="text-[11.5px] font-semibold flex-1 truncate" x-text="tx(o.label)"></span>
+           <span class="pill !py-0 !px-1 !text-[9px] font-mono" x-text="typeLabel(o.type)"></span>
+           <span x-show="refCount(cur.id,o.key)" class="text-[9.5px] text-accent" x-text="t('builder.dataUsed',{n:refCount(cur.id,o.key)})"></span>
+          </div>
+          <div class="flex items-center gap-1.5 mt-1">
+           <code class="text-[10px] font-mono text-faint truncate flex-1" x-text="'{{ '+cur.id+'.'+o.key+' }}'"></code>
+           <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(refToken(cur.id,o.key));toast(t('builder.copiedRef',{path:refToken(cur.id,o.key)}))" :aria-label="t('builder.copyRef',{path:refToken(cur.id,o.key)})" x-html="ICON('copy','',12)"></button>
+          </div>
+          <div class="text-[10px] text-faint font-mono truncate mt-0.5" x-text="o.value"></div>
+         </div>
+        </template>
+       </div>
+      </div>
+
+      <template x-if="cur.sample">
+       <div class="border-t border-line pt-3">
+        <h3 class="text-[12px] font-semibold" x-text="t('builder.sampleTitle')"></h3>
+        <p class="text-[11px] text-mute mt-0.5 leading-relaxed" x-text="t('builder.sampleHint')"></p>
+        <div class="mt-2 space-y-2">
+         <template x-for="k in Object.keys(cur.sample||{})" :key="k">
+          <label class="block">
+           <span class="text-[10.5px] font-mono text-mute" x-text="k"></span>
+           <input x-model="cur.sample[k]" @input="dirty=true" class="input mt-1 text-[11.5px] font-mono">
+          </label>
+         </template>
+         <button type="button" class="btn btn-sm" @click="toast(t('builder.sampleSaved'))" x-text="t('builder.sampleEdit')"></button>
+        </div>
+       </div>
+      </template>
+     </div>
+    </div>
+   </template>
+  </aside>
+ </div>
+
+ <!-- Dialogs -->
+ <ui-modal id="palette-dialog" title-key="builder.paletteTitle" wide>
+  <div class="-mt-1">
+   <div class="relative">
+    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-faint" x-html="ICON('search','',15)"></span>
+    <input id="palette-search" x-model="palette.q" @keydown="paletteKey($event)" class="input pl-9 w-full" :placeholder="t('builder.paletteSearch')" :aria-label="t('builder.paletteSearch')">
+   </div>
+   <p class="text-[11.5px] text-mute mt-2" x-text="palette.edge!=null?t('builder.insertHere'):(palette.after?t('builder.paletteAfter',{name:nameOf(node(palette.after))}):t('builder.paletteEnd'))"></p>
+   <div class="mt-3 max-h-[46vh] overflow-auto scroll -mx-1 px-1">
+    <div class="text-[10.5px] font-semibold uppercase tracking-[.08em] text-faint px-2 py-1.5" x-show="!palette.q" x-text="t('builder.paletteFlow')"></div>
+    <button type="button" x-show="!palette.q" @click="paletteChoose(paletteEntries[0])" :disabled="paletteEntries[0]&amp;&amp;paletteEntries[0].disabled" class="w-full flex items-center gap-3 p-2 rounded-lg text-left hover:bg-fill disabled:opacity-45 disabled:hover:bg-transparent">
+     <span class="w-8 h-8 rounded-[9px] grid place-items-center shrink-0" style="background:var(--fill);color:var(--mute)" x-html="ICON('branch','',16)"></span>
+     <span class="min-w-0 flex-1"><span class="block text-[12.5px] font-semibold" x-text="t('builder.addCondition')"></span><span class="block text-[11px] text-mute truncate" x-text="paletteEntries[0]&amp;&amp;paletteEntries[0].disabled?t('builder.paletteConditionExists'):t('builder.addConditionBody')"></span></span>
+    </button>
+    <div class="text-[10.5px] font-semibold uppercase tracking-[.08em] text-faint px-2 py-1.5 mt-1" x-text="t('builder.paletteServices')"></div>
+    <template x-for="(it,ii) in paletteEntries.slice(1)" :key="it.key">
+     <button type="button" @click="paletteChoose(it)" @mouseenter="palette.idx=ii+1" :disabled="it.disabled" class="w-full flex items-center gap-3 p-2 rounded-lg text-left hover:bg-fill disabled:opacity-45 disabled:hover:bg-transparent" :class="palette.idx===ii+1?'bg-fill':''">
+      <ui-svc :id="it.svc" :size="30"></ui-svc>
+      <span class="min-w-0 flex-1">
+       <span class="flex items-center gap-1.5"><span class="text-[12.5px] font-semibold truncate" x-text="it.name"></span><span class="pill !py-0 !px-1.5 !text-[9px] shrink-0" x-text="t(it.kind==='trigger'?'builder.triggerPill':'builder.actionPill')"></span></span>
+       <span class="block text-[11px] text-mute truncate" x-text="it.disabled?t(it.reasonKey):it.blurb"></span>
+      </span>
+      <span class="text-faint shrink-0" x-html="ICON('plus','',14)"></span>
+     </button>
+    </template>
+    <p x-show="!paletteEntries.length" class="text-[12px] text-mute px-2 py-6 text-center" x-text="t('builder.paletteNoResults',{query:palette.q})"></p>
+   </div>
+   <div class="flex items-center gap-3 mt-3 pt-3 border-t border-line text-[10.5px] text-faint">
+    <span class="flex items-center gap-1"><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd><span x-text="t('builder.paletteMove')"></span></span>
+    <span class="flex items-center gap-1"><kbd class="kbd">↵</kbd><span x-text="t('builder.palettePick')"></span></span>
+    <span class="flex items-center gap-1 ml-auto"><kbd class="kbd">Esc</kbd><span x-text="t('builder.keyClose')"></span></span>
+   </div>
+  </div>
+ </ui-modal>
+
+ <ui-modal id="connect-dialog" title-key="builder.connectTo">
+  <div class="space-y-1">
+   <template x-if="!connectTargets.length"><div class="text-center py-4"><p class="text-[12.5px] font-medium" x-text="t('builder.noConnectTargets')"></p><p class="text-[11.5px] text-mute mt-1" x-text="t('builder.noConnectTargetsBody')"></p></div></template>
+   <template x-for="(c,ci) in connectTargets" :key="c.id+c.port">
+    <button type="button" :id="ci===0?'connect-first':''" @click="connectTo(c.id,c.port)" class="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-fill text-left">
+     <span class="text-[10px] text-faint num w-5" x-text="stepOf(c.id)"></span>
+     <span x-html="ICON('link','',14)"></span>
+     <span class="text-[12.5px] flex-1" x-text="c.name"></span>
+     <span x-show="c.port!=='out'" class="pill !py-0 !px-1.5 !text-[9.5px]" :class="c.port==='yes'?'!text-yes':'!text-no'" x-text="c.port==='yes'?t('builder.branchYes'):t('builder.branchNo')"></span>
+    </button>
+   </template>
+  </div>
+ </ui-modal>
+
+ <ui-modal id="delete-dialog" title-key="builder.deleteStep">
+  <p class="text-[12.5px] text-mute leading-relaxed" x-text="cur?t('builder.deleteTitle',{name:nameOf(cur)}):''"></p>
+  <p class="text-[12px] text-mute leading-relaxed mt-2" x-text="t('builder.deleteBody')"></p>
+  <div class="flex items-center justify-end gap-2 mt-5">
+   <button type="button" class="btn" onclick="closeDialog('delete-dialog')" x-text="t('common.cancel')"></button>
+   <button type="button" class="btn btn-danger" @click="deleteNode()" x-text="t('builder.deleteStep')"></button>
+  </div>
+ </ui-modal>
+
+ <ui-modal id="keys-dialog" title-key="builder.keyHelpTitle" desc-key="builder.keyHelpLead" wide>
+  <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+   <div>
+    <h3 class="text-[11px] font-semibold uppercase tracking-[.08em] text-faint mb-2" x-text="t('builder.keyGroupCanvas')"></h3>
+    <dl class="space-y-1.5">
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keySelect')"></dt><dd><kbd class="kbd">Tab</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyNudge')"></dt><dd class="flex gap-1"><kbd class="kbd">←</kbd><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd><kbd class="kbd">→</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyNudgeBig')"></dt><dd class="flex gap-1"><kbd class="kbd">Shift</kbd><span class="text-[10px] text-faint">+</span><kbd class="kbd">←</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyOpen')"></dt><dd><kbd class="kbd">Enter</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyConnect')"></dt><dd><kbd class="kbd">C</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyAdd')"></dt><dd><kbd class="kbd">N</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyDelete')"></dt><dd><kbd class="kbd">Del</kbd></dd></div>
+    </dl>
+   </div>
+   <div>
+    <h3 class="text-[11px] font-semibold uppercase tracking-[.08em] text-faint mb-2" x-text="t('builder.keyGroupEdit')"></h3>
+    <dl class="space-y-1.5">
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyUndo')"></dt><dd><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Z</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyRedo')"></dt><dd><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Shift</kbd> <kbd class="kbd">Z</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keySave')"></dt><dd><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">S</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyPalette')"></dt><dd><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">K</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyZoom')"></dt><dd class="flex gap-1"><kbd class="kbd">+</kbd><kbd class="kbd">−</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyFit')"></dt><dd><kbd class="kbd">0</kbd></dd></div>
+    </dl>
+    <h3 class="text-[11px] font-semibold uppercase tracking-[.08em] text-faint mt-4 mb-2" x-text="t('builder.keyGroupPanel')"></h3>
+    <dl class="space-y-1.5">
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyPick')"></dt><dd><kbd class="kbd">Enter</kbd></dd></div>
+     <div class="flex items-center gap-2"><dt class="flex-1 text-[12px]" x-text="t('builder.keyCancel')"></dt><dd><kbd class="kbd">Esc</kbd></dd></div>
+    </dl>
+   </div>
+  </div>
+  <p class="mt-4 pt-3 border-t border-line text-[11px] text-mute" x-text="t('builder.keyboardNotice')"></p>
+ </ui-modal>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div>
+</body></html>

@@ -1,0 +1,161 @@
+<!doctype html><html lang="en"><head><title>Android client · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="mobile"><div class="h-full flex flex-col" x-data="{
+  tab: 'workflows',
+  offline: false,
+  server: 'area.epitech.eu',
+  testing: false,
+  syncedAt: DATA.now,
+  get active(){ return DATA.workflows.filter(w=>w.on && wfStatus(w)!=='draft').length },
+  get attention(){ return DATA.workflows.filter(w=>['attention','draft'].includes(wfStatus(w))).length },
+  fmt(iso){ return fmtWhen(iso) },
+  svcOf(run){ const w=runWorkflow(run); return (wfTriggerNode(w)||{}).svc || 'gmail'; },
+  wfOf(run){ return tx((runWorkflow(run)||{}).name || ''); },
+  test(){
+    this.testing=true; this.syncedAt=null;
+    setTimeout(()=>{ this.testing=false; this.offline=false; this.syncedAt=DATA.now; toast(t('mobile.synced',{when:this.fmt(this.syncedAt)})); announce(t('mobile.synced',{when:this.fmt(this.syncedAt)}),true); }, 900);
+  },
+  retry(){ this.testing=true; setTimeout(()=>{ this.testing=false; this.offline=false; this.syncedAt=DATA.now; toast(t('mobile.synced',{when:this.fmt(this.syncedAt)})); }, 700); },
+  toggle(w){
+    if(wfServices(w).some(id=>svc(id).state!=='connected')){ toast(t('services.expiredBanner',{service:svc(wfServices(w).find(id=>svc(id).state!=='connected')).name}),{timeout:5000}); return; }
+    w.on=!w.on; toast(t(w.on?'dash.enabled':'dash.disabled',{name:tx(w.name)})); announce(t(w.on?'dash.enabled':'dash.disabled',{name:tx(w.name)}),true);
+  }
+}" class="h-full flex flex-col bg-win">
+
+ <!-- Page header -->
+ <header class="h-14 shrink-0 flex items-center gap-2 px-3 sm:px-6 border-b border-line bg-card">
+  <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.back')" @click="location='index.html'" x-html="ICON('arrow-left','',17)"></button>
+  <div class="min-w-0 flex-1">
+   <h2 class="text-[16px] font-semibold truncate" x-text="t('mobile.title')"></h2>
+   <p class="text-[12px] text-mute truncate" x-text="t('mobile.lead')"></p>
+  </div>
+  <button type="button" class="btn btn-sm" :aria-label="t('mobile.openWeb')" @click="location='index.html'" x-html="ICON('arrow-right','',14)+'<span class=\'hidden sm:inline\'>'+t('mobile.openWeb')+'</span>'"></button>
+ </header>
+
+ <div class="flex-1 min-h-0 overflow-auto scroll p-4 sm:px-6 lg:px-8 max-w-[900px] mx-auto space-y-7">
+
+  <div class="text-center sm:text-left">
+   <h2 class="text-[13px] font-semibold uppercase tracking-[.08em] text-faint mb-2" x-text="t('mobile.note')"></h2>
+   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <template x-for="frame in [1,2,3]" :key="frame">
+     <div class="phone" :style="'--svc:'+(frame===1?'#b3261e':frame===2?'#17764a':'#6a3d9a')">
+      <div class="absolute inset-0 flex flex-col">
+       <!-- status bar -->
+       <div class="h-6 flex items-center justify-between px-3 text-[10px] font-mono text-faint border-b border-line bg-card">
+        <span x-text="frame===1?'09:14':frame===2?'09:00':'08:44'"></span>
+        <div class="flex items-center gap-1"><span x-text="frame===1?'5G':'Wi-Fi'"></span><span x-html="ICON('bolt','',11,'',1.2)"></span><span x-text="'84%'"></span></div>
+       </div>
+       <!-- screen -->
+       <div class="phone-screen flex-1 flex flex-col overflow-hidden">
+        <template x-if="frame===1">
+         <div>
+          <!-- Workflows tab -->
+          <div class="flex items-center gap-2 px-3 py-2 border-b border-line bg-card">
+           <template x-for="tabKey in ['workflows','activity','settings']" :key="tabKey">
+            <button type="button" :aria-pressed="tab===tabKey" @click="tab=tabKey" class="text-[11px] font-medium py-1.5 px-2" :class="tab===tabKey?'text-accent':'text-mute hover:text-ink'" x-text="tabKey==='workflows'?t('mobile.tabWorkflows'):tabKey==='activity'?t('mobile.tabActivity'):t('mobile.tabSettings')"></button>
+           </template>
+          </div>
+          <div class="flex-1 overflow-auto px-3 pb-3">
+           <div class="space-y-2">
+            <template x-for="w in DATA.workflows" :key="w.id">
+             <a :href="'builder.html?wf='+w.id" class="rowlink">
+              <div class="flex items-center gap-2">
+               <template x-for="id in wfServices(w).slice(0,2)" :key="id"><ui-svc :id="id" :size="18"></ui-svc></template>
+               <span x-show="wfServices(w).length>2" class="text-[9px] text-faint num" x-text="'+'+(wfServices(w).length-2)"></span>
+              </div>
+              <div class="min-w-0 flex-1">
+               <div class="text-[12px] font-medium truncate" x-text="tx(w.name)"></div>
+               <div class="flex items-center gap-1 text-[10px] text-mute mt-0.5">
+                <span class="pill !py-0 !px-1 !text-[8.5px]" :class="statusPill(w)==='ok'?'pill-ok':statusPill(w)==='attention'?'pill-warn':'pill-neutral'" x-text="wfStatusLabel(w)"></span>
+                <span x-text="t('common.steps',{n:wfNodes(w).length})"></span>
+               </div>
+              </div>
+              <ui-switch :bind="w.on" :label="t('common.toggleWorkflow',{name:tx(w.name)})" @click="toggle(w)" :aria-label="t('common.toggleWorkflow',{name:tx(w.name)})"></ui-switch>
+             </a>
+            </template>
+           </div>
+          </div>
+         </div>
+        </template>
+        <template x-if="frame===2">
+         <div>
+          <!-- Activity tab -->
+          <div class="flex items-center gap-2 px-3 py-2 border-b border-line bg-card">
+           <template x-for="tabKey in ['workflows','activity','settings']" :key="tabKey">
+            <button type="button" :aria-pressed="tab===tabKey" @click="tab=tabKey" class="text-[11px] font-medium py-1.5 px-2" :class="tab===tabKey?'text-accent':'text-mute hover:text-ink'" x-text="tabKey==='workflows'?t('mobile.tabWorkflows'):tabKey==='activity'?t('mobile.tabActivity'):t('mobile.tabSettings')"></button>
+           </template>
+          </div>
+          <div class="flex-1 overflow-auto px-3 pb-3">
+           <div class="space-y-3">
+            <div class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint px-2" x-text="t('mobile.activityTitle')"></div>
+            <template x-for="r in DATA.activity.map(id=>DATA.runs.find(x=>x.id===id)).filter(Boolean).slice(0,4)" :key="r.id">
+             <div class="rowlink">
+              <div class="flex items-center gap-2">
+               <ui-svc :id="svcOf(r)" :size="18"></ui-svc>
+              </div>
+              <div class="min-w-0 flex-1">
+               <div class="text-[12px] font-medium truncate" x-text="wfOf(r)"></div>
+               <div class="text-[10px] text-mute" x-text="relTime(r.at)"></div>
+              </div>
+              <div class="text-[10px] text-right" :class="r.status==='ok'?'tone-ok':'tone-bad'" x-text="r.status==='ok'?t('state.ok'):t('state.failed')"></div>
+              <span class="sr-only" x-text="r.status==='ok'?t('state.ok'):t('state.failed')"></span>
+             </div>
+            </template>
+           </div>
+          </div>
+         </div>
+        </template>
+        <template x-if="frame===3">
+         <div>
+          <!-- Settings tab -->
+          <div class="flex items-center gap-2 px-3 py-2 border-b border-line bg-card">
+           <template x-for="tabKey in ['workflows','activity','settings']" :key="tabKey">
+            <button type="button" :aria-pressed="tab===tabKey" @click="tab=tabKey" class="text-[11px] font-medium py-1.5 px-2" :class="tab===tabKey?'text-accent':'text-mute hover:text-ink'" x-text="tabKey==='workflows'?t('mobile.tabWorkflows'):tabKey==='activity'?t('mobile.tabActivity'):t('mobile.tabSettings')"></button>
+           </template>
+          </div>
+          <div class="flex-1 overflow-auto px-3 pb-3 space-y-4">
+           <div class="rounded-xl border border-line p-3">
+            <div class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint mb-2" x-text="t('mobile.settingsTitle')"></div>
+            <label class="block">
+             <span class="label text-[11px]" x-text="t('mobile.serverLabel')"></span>
+             <input :value="server" class="input mt-1 text-[12px]" readonly>
+             <span class="hint text-[10px]" x-text="t('mobile.serverHint')"></span>
+            </label>
+            <div class="mt-2 flex items-center gap-2">
+             <button type="button" :disabled="testing" class="btn btn-sm flex-1" @click="test()" x-text="testing?t('mobile.testing'):t('mobile.test')"></button>
+             <button type="button" :disabled="testing||syncedAt" class="btn btn-sm btn-ghost text-[11px]" @click="retry()" x-text="t('mobile.retrySync')"></button>
+            </div>
+            <template x-if="offline"><div class="mt-2 rounded-lg p-2" style="background:var(--warn-soft)"><span class="text-warn text-[10px] font-medium" x-text="t('mobile.offline')"></span><span class="text-[10px] text-warn" x-text="t('mobile.offlineBanner',{time:fmt(syncedAt||DATA.now)})"></span></div></template>
+            <template x-if="syncedAt&&!offline"><div class="mt-2 rounded-lg p-2" style="background:var(--ok-soft)"><span class="text-ok text-[10px] font-medium" x-text="t('mobile.synced',{when:fmt(syncedAt)})"></span></div></template>
+            <p class="text-[10px] text-mute mt-3 leading-relaxed" x-text="t('mobile.notificationsHint')"></p>
+            <p class="text-[10px] text-mute leading-relaxed" x-text="t('mobile.targetNote')"></p>
+           </div>
+           <div class="border-t border-line pt-3">
+            <div class="text-[11px] font-semibold uppercase tracking-[.07em] text-faint mb-2" x-text="t('mobile.parity')"></div>
+            <ul class="space-y-1 text-[10.5px] text-mute list-disc pl-4">
+             <li x-text="t('mobile.parityItem1')"></li>
+             <li x-text="t('mobile.parityItem2')"></li>
+             <li x-text="t('mobile.parityItem3')"></li>
+             <li x-text="t('mobile.parityItem4')"></li>
+            </ul>
+           </div>
+          </div>
+         </div>
+        </template>
+       </div>
+      </div>
+     </div>
+    </template>
+   </div>
+  </div>
+
+  <div class="mt-4 rounded-xl p-3" style="background:var(--fill)">
+   <div class="flex items-center gap-2 text-[11px] text-mute"><span x-html="ICON('info','',13)"></span><span x-text="t('mobile.parity')+': '"></span></div>
+  </div>
+
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>
