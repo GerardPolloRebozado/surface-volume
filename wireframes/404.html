@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><title>Page not found · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="workflows"><div class="h-full flex flex-col" x-data="{ path: location.pathname }">
+
+ <ui-bar heading-key="error.notFoundTitle">
+  <a class="btn btn-sm btn-ghost" href="index.html" x-html="ICON('arrow-left','',14)+'<span class=\'hidden sm:inline\'>'+t('states.back')+'</span>'"></a>
+ </ui-bar>
+
+ <div class="flex-1 min-h-0 overflow-auto">
+  <div class="max-w-[600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+   <div class="text-center">
+    <div class="text-[48px] font-mono leading-none mb-2">404</div>
+    <h2 class="text-[16px] font-semibold" x-text="t('error.notFoundTitle')"></h2>
+    <p class="text-[13px] text-mute leading-relaxed mt-1 max-w-[46ch] mx-auto" x-text="t('error.notFoundBody')"></p>
+    <p class="text-[11px] text-mute font-mono mt-4" x-text="path"></p>
+   </div>
+
+   <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <a class="card p-5 flex items-center gap-3 hover:bg-fill transition-colors" href="index.html">
+     <span class="shrink-0" x-html="ICON('grid','',20)"></span>
+     <div class="min-w-0 flex-1"><div class="text-[13px] font-semibold truncate" x-text="t('dash.listTitle')"></div><div class="text-[11px] text-mute">All your workflows</div></div>
+     <span class="ml-auto shrink-0" x-html="ICON('arrow-right','',15)"></span>
+    </a>
+    <a class="card p-5 flex items-center gap-3 hover:bg-fill transition-colors" href="services.html">
+     <span class="shrink-0" x-html="ICON('bolt','',20)"></span>
+     <div class="min-w-0 flex-1"><div class="text-[13px] font-semibold truncate" x-text="t('services.title')"></div><div class="text-[11px] text-mute">Connected services</div></div>
+     <span class="ml-auto shrink-0" x-html="ICON('arrow-right','',15)"></span>
+    </a>
+   </div>
+  </div>
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+</div></ui-shell>
+</body></html>

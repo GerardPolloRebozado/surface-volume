@@ -1,0 +1,246 @@
+<!doctype html><html lang="en"><head><title>Workflows · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script></head><body>
+<ui-shell active="workflows"><div class="h-full flex flex-col" x-data="{
+  rows: DATA.workflows.map(w=>({...w})),
+  filter: 'all', q: '', menu: null, askDelete: null,
+  get expiredWf(){ return this.rows.find(w=>expiredSvc(w)) || null },
+  get expiredName(){ const e=this.expiredWf; return e ? svc(expiredSvc(e)).name : '' },
+  get filtered(){
+    const q=this.q.toLowerCase().trim();
+    return this.rows.filter(w=>{
+      const st=wfStatus(w);
+      const pass = this.filter==='all' ? true : this.filter==='on' ? (w.on && st!=='draft') : this.filter==='off' ? !w.on : (st==='attention'||st==='draft');
+      if(!pass) return false;
+      if(!q) return true;
+      return (tx(w.name)+' '+tx(w.intent)+' '+wfServices(w).map(id=>svc(id).name).join(' ')).toLowerCase().includes(q);
+    });
+  },
+  get countAll(){ return this.rows.length },
+  get countOn(){ return this.rows.filter(w=>w.on && wfStatus(w)!=='draft').length },
+  get countOff(){ return this.rows.filter(w=>!w.on).length },
+  get countAttention(){ return this.rows.filter(w=>['attention','draft'].includes(wfStatus(w))).length },
+  get problems(){
+    return this.rows.filter(w=>['attention','draft'].includes(wfStatus(w))).map(w=>{
+      const exp=expiredSvc(w);
+      if(exp) return {w, tone:'warn', icon:'alert', text:t('dash.needsBody',{service:svc(exp).name}), cta:t('dash.needsCta',{service:svc(exp).name}), href:'services.html?s='+exp};
+      if(wfStatus(w)==='draft'){ const missing=wfServices(w).find(id=>svc(id).state==='none') || 'stripe'; return {w, tone:'neutral', icon:'info', text:t('dash.draftBody',{service:svc(missing).name}), cta:t('dash.draftCta',{service:svc(missing).name}), href:'services.html?s='+missing}; }
+      return {w, tone:'bad', icon:'x', text:t('dash.failedBody',{step:''}), cta:t('dash.failedCta'), href:'runs.html?wf='+w.id+'&failed=1'};
+    });
+  },
+  get activity(){ return DATA.activity.map(id=>DATA.runs.find(r=>r.id===id)).filter(Boolean).slice(0,5) },
+  name(w){ return tx(w.name) },
+  latest(w){ return lastRun(w.id) },
+  spark(w){ return sparkFor(w) },
+  svcOf(run){ const w=runWorkflow(run); return (wfTriggerNode(w)||{}).svc || 'gmail' },
+  wfOf(run){ return tx((runWorkflow(run)||{}).name || DATA.workflows[0].name) },
+  lastFailed(run){ const s=run.path.find(p=>p.status==='fail'); const w=runWorkflow(run); const n=w.nodes.find(x=>x.id===(s&&s.id)); return n ? wfNodeName(n) : '' },
+  toggle(w){
+    if(!w.on){ const bad=wfServices(w).map(id=>svc(id)).find(s=>s.state!=='connected'); if(bad){ const m=t('services.expiredBanner',{service:bad.name}); toast(m,{timeout:6000}); announce(m,true); return; } }
+    w.on=!w.on;
+    const m=t(w.on?'dash.enabled':'dash.disabled',{name:this.name(w)});
+    toast(m); announce(m,true);
+  },
+  duplicate(w){
+    this.rows.unshift({...w, id:w.id+'-copy-'+Date.now(), name:L(tx(w.name)+' · '+t('common.copy'), tx(w.name)+' · '+t('common.copy')), on:false, state:'draft'});
+    this.menu=null; toast(t('dash.duplicated',{name:this.name(w)}));
+  },
+  runNow(w){
+    this.menu=null;
+    const m=t('dash.runQueued',{name:this.name(w)}); toast(m); announce(m,true);
+  },
+  ask(w){ this.askDelete=w; this.menu=null; openDialog('delete-wf'); },
+  confirmDelete(){
+    const w=this.askDelete; if(!w) return;
+    this.rows=this.rows.filter(x=>x.id!==w.id); closeDialog('delete-wf');
+    toast(t('dash.deleted',{name:this.name(w)}),{action:t('common.undo'), onAction:()=>{this.rows.push(w); this.rows.sort((a,b)=>DATA.workflows.findIndex(x=>x.id===a.id)-DATA.workflows.findIndex(x=>x.id===b.id))}});
+    this.askDelete=null;
+  },
+  filterKey(e){
+    const opts=['all','on','off','attention']; let i=opts.indexOf(this.filter);
+    if(e.key==='ArrowRight') i=(i+1)%opts.length; else if(e.key==='ArrowLeft') i=(i-1+opts.length)%opts.length; else if(e.key==='Home') i=0; else if(e.key==='End') i=opts.length-1; else return;
+    e.preventDefault(); this.filter=opts[i]; this.$nextTick(()=>this.$refs['tab-'+this.filter]?.focus());
+  }
+}">
+ <ui-bar heading-key="dash.title">
+  <label class="relative hidden sm:block">
+   <span class="sr-only">Search workflows</span>
+   <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-mute" x-html="ICON('search','',15)"></span>
+   <input x-model="q" class="input pl-8 w-[210px] text-[13px]" :placeholder="t('dash.searchPlaceholder')" :aria-label="t('dash.searchPlaceholder')" type="search">
+  </label>
+  <a href="builder.html" class="btn btn-accent" x-html="ICON('plus','',15)+'<span>'+t('dash.new')+'</span>'"></a>
+ </ui-bar>
+ <div class="flex-1 overflow-auto scroll">
+  <div class="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-7">
+
+   <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+     <h2 class="text-[26px] leading-tight font-semibold tracking-tight" x-text="t('dash.greeting',{name:'Alex'})"></h2>
+     <p class="text-[13.5px] text-mute mt-1" x-text="t('dash.lead',{total:rows.length, runs:DATA.stats.weekRuns, failed:DATA.stats.failed})"></p>
+    </div>
+    <div class="hidden md:flex items-center gap-1.5 text-[12px] text-mute pt-1.5" x-html="ICON('calendar','',14)+'<span>'+dateLong()+'</span>'"></div>
+   </div>
+
+   <template x-if="expiredWf">
+    <div class="mt-5">
+     <ui-banner tone="warn" icon="alert" alert="true" :title="t('dash.needsTitle')" :body="t('dash.needsBody',{service:expiredName})">
+      <div class="flex gap-2 mt-2.5">
+       <a class="btn btn-sm" :href="'services.html?s='+expiredSvc(expiredWf)" x-text="t('dash.needsCta',{service:expiredName})"></a>
+       <a class="btn btn-sm btn-ghost" :href="'runs.html?wf='+expiredWf.id+'&failed=1'" x-text="t('dash.failedRuns')"></a>
+      </div>
+     </ui-banner>
+    </div>
+   </template>
+
+   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+    <section class="card p-5 lg:col-span-2 flex flex-col" aria-labelledby="perf-title">
+     <div class="flex items-start justify-between">
+      <div><h3 id="perf-title" class="text-[13px] font-semibold" x-text="t('dash.successTitle')"></h3>
+       <p class="text-[11.5px] text-mute mt-0.5" x-text="t('common.perDay')"></p></div>
+      <a href="runs.html" class="text-[12px] text-mute hover:text-ink inline-flex items-center gap-1" x-html="t('common.viewAll')+ICON('arrow-right','',13)"></a>
+     </div>
+     <div class="flex items-end gap-3 mt-2.5">
+      <div class="text-[38px] leading-none font-semibold num tracking-tight"><span x-text="fmtNum(DATA.stats.successRate,{maximumFractionDigits:1})"></span><span class="text-[22px] text-mute">%</span></div>
+      <div class="pb-1.5 text-[11.5px] text-ok font-medium flex items-center gap-1" x-html="ICON('arrow-right','',12)+'<span>'+t('dash.successDelta')+'</span>'"></div>
+     </div>
+     <div class="mt-auto pt-5">
+      <div x-html="dayChart(DATA.stats.perDay)" role="img" :aria-label="t('common.ariaRunsChart')"></div>
+      <div class="flex items-center justify-between border-t border-line mt-4 pt-3 text-[12px]">
+       <div class="flex items-center gap-5">
+        <span class="text-mute"><span class="num font-semibold text-ink" x-text="fmtNum(DATA.stats.weekRuns)"></span> <span x-text="t('dash.units').toLowerCase()"></span></span>
+        <span class="text-mute"><span class="num font-semibold text-bad" x-text="fmtNum(DATA.stats.failed)"></span> <span x-text="t('dash.unitsFailed').toLowerCase()"></span></span>
+       </div>
+       <span class="text-faint text-[11px]" x-text="t('dash.runsToday',{n:4})"></span>
+      </div>
+     </div>
+    </section>
+
+    <section class="card p-5 flex flex-col" aria-labelledby="activity-title">
+     <div class="flex items-start justify-between">
+      <h3 id="activity-title" class="text-[13px] font-semibold" x-text="t('dash.activity')"></h3>
+      <a href="runs.html" class="text-[12px] text-mute hover:text-ink" x-text="t('common.viewAll')"></a>
+     </div>
+     <div class="mt-2 -mx-1">
+      <template x-for="run in activity" :key="run.id">
+       <a :href="'runs.html?run='+run.id" class="flex items-center gap-2.5 px-1 py-[7px] rounded-lg hover:bg-fill">
+        <ui-svc :id="svcOf(run)" :size="22"></ui-svc>
+        <div class="min-w-0 flex-1">
+         <div class="text-[12px] font-medium truncate" x-text="wfOf(run)"></div>
+         <div class="text-[10.5px] text-mute" x-text="relTime(run.at)"></div>
+        </div>
+        <span :class="run.status==='ok'?'tone-ok':'tone-bad'" x-html="ICON(statusIcon(run.status),'',14)"></span>
+        <span class="sr-only" x-text="run.status==='ok'?t('state.ok'):t('state.failed')"></span>
+       </a>
+      </template>
+     </div>
+     <p x-show="!activity.length" class="text-[12px] text-mute py-4" x-text="t('dash.activityEmpty')"></p>
+    </section>
+   </div>
+
+   <section class="card mt-4" aria-labelledby="wf-title">
+    <div class="flex flex-wrap items-center gap-3 px-4 sm:px-5 pt-4 pb-3">
+     <h2 id="wf-title" class="text-[14px] font-semibold" x-text="t('dash.listTitle')"></h2>
+     <span class="pill" x-text="rows.length"></span>
+     <div class="ml-auto flex items-center gap-2">
+      <div class="seg hidden sm:inline-flex" role="tablist" :aria-label="t('dash.listTitle')">
+       <button role="tab" x-ref="tab-all" :id="'ft-all'" :aria-selected="filter==='all'" :tabindex="filter==='all'?0:-1" @click="filter='all'" @keydown="filterKey($event)" class="gap-1.5"><span x-text="t('dash.filterAll')"></span><span class="num text-[11px] text-faint" x-text="countAll"></span></button>
+       <button role="tab" x-ref="tab-on" :id="'ft-on'" :aria-selected="filter==='on'" :tabindex="filter==='on'?0:-1" @click="filter='on'" @keydown="filterKey($event)" class="gap-1.5"><span x-text="t('dash.filterOn')"></span><span class="num text-[11px] text-faint" x-text="countOn"></span></button>
+       <button role="tab" x-ref="tab-off" :id="'ft-off'" :aria-selected="filter==='off'" :tabindex="filter==='off'?0:-1" @click="filter='off'" @keydown="filterKey($event)" class="gap-1.5"><span x-text="t('dash.filterOff')"></span><span class="num text-[11px] text-faint" x-text="countOff"></span></button>
+       <button role="tab" x-ref="tab-attention" :id="'ft-attention'" :aria-selected="filter==='attention'" :tabindex="filter==='attention'?0:-1" @click="filter='attention'" @keydown="filterKey($event)" class="gap-1.5"><span x-text="t('dash.filterAttention')"></span><span class="num text-[11px] text-faint" x-text="countAttention"></span></button>
+      </div>
+      <label class="relative sm:hidden">
+       <span class="sr-only" x-text="t('dash.searchPlaceholder')"></span>
+       <input x-model="q" class="input w-[150px] text-[13px]" :placeholder="t('common.search')" type="search">
+      </label>
+     </div>
+    </div>
+    <div class="border-t border-line" role="tabpanel" :aria-labelledby="'ft-'+filter">
+     <template x-for="w in filtered" :key="w.id">
+      <div class="relative group first:rounded-t-[12px] last:rounded-b-[12px]" :class="menu===w.id?'z-20':''" @keydown.escape.window="menu=null">
+       <!-- Left: service icons + workflow identity -->
+       <div class="flex items-center gap-3 px-4 py-3">
+        <div class="flex items-center gap-1 shrink-0" aria-hidden="true">
+         <template x-for="id in wfServices(w).slice(0,3)" :key="id"><ui-svc :id="id" :size="20"></ui-svc></template>
+         <span x-show="wfServices(w).length>3" class="text-[10px] text-faint num" x-text="'+'+(wfServices(w).length-3)"></span>
+        </div>
+        <div class="min-w-0 flex-1">
+         <div class="flex items-center gap-2 flex-wrap mb-0.5">
+          <a :href="'builder.html?wf='+w.id" class="text-[14px] font-semibold hover:underline underline-offset-2 truncate" x-text="name(w)"></a>
+          <template x-if="wfStatus(w)==='attention'"><ui-badge :tone="statusPill(w)" icon="alert" x-text="wfStatusLabel(w)"></ui-badge></template>
+          <template x-if="wfStatus(w)==='draft'"><ui-badge tone="neutral" icon="info" x-text="wfStatusLabel(w)"></ui-badge></template>
+          <template x-if="!w.on && wfStatus(w)!=='draft'"><span class="pill" x-text="t('common.paused')"></span></template>
+         </div>
+         <div class="text-[11.5px] text-mute leading-relaxed">
+          <span x-text="t('dash.triggeredBy',{service:svc((wfTriggerNode(w)||{}).svc||'gmail').name})"></span>
+          <span class="text-faint"> · </span>
+          <span x-text="t('common.steps',{n:wfNodes(w).length})"></span>
+          <template x-if="tx(w.intent)"><span class="text-faint"> · </span><span class="truncate inline-block max-w-[200px]" x-text="tx(w.intent)"></span></template>
+         </div>
+        </div>
+       </div>
+       <!-- Right: last run + status + actions -->
+       <div class="flex items-center gap-3 px-4 py-3 border-t border-line bg-fill">
+        <div class="hidden lg:block shrink-0 w-[92px] text-right">
+         <template x-if="latest(w)"><div class="text-[11px] font-medium" x-text="relTime(latest(w).at)"></div><div class="text-[10px] text-mute"><span x-text="latest(w).status==='ok'?t('state.ok'):t('state.failed')"></span> · <span x-text="fmtDuration(latest(w).duration)"></span></div></template>
+         <div x-show="!latest(w)" class="text-[11px] text-mute" x-text="t('dash.neverRun')"></div>
+        </div>
+        <div class="hidden sm:block shrink-0 w-[110px] text-right">
+         <ui-switch :bind="w.on" :label="t('common.toggleWorkflow',{name:name(w)})" @click="toggle(w)" class="ml-1"></ui-switch>
+        </div>
+        <div class="ml-auto shrink-0">
+         <button type="button" class="btn btn-ghost btn-icon btn-sm" :aria-label="t('common.moreActions')" :aria-expanded="menu===w.id" @click.stop="menu=menu===w.id?null:w.id" x-html="ICON('more','',16)"></button>
+         <div x-show="menu===w.id" x-cloak @click.outside="menu=null" class="absolute right-0 top-full mt-2 w-[190px] card p-1.5 z-30 rise" role="menu">
+          <a :href="'builder.html?wf='+w.id" class="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] hover:bg-fill" role="menuitem" x-html="ICON('sliders','',14)+'<span>'+t('dash.menu.edit')+'</span>'"></a>
+          <a :href="'runs.html?wf='+w.id" class="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] hover:bg-fill" role="menuitem" x-html="ICON('activity','',14)+'<span>'+t('dash.menu.history')+'</span>'"></a>
+          <button type="button" @click="runNow(w)" class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] hover:bg-fill" role="menuitem" x-html="ICON('play','',13)+'<span>'+t('dash.menu.run')+'</span>'"></button>
+          <button type="button" @click="duplicate(w)" class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] hover:bg-fill" role="menuitem" x-html="ICON('copy','',14)+'<span>'+t('dash.menu.duplicate')+'</span>'"></button>
+          <div class="border-t border-line my-1"></div>
+          <button type="button" @click="ask(w)" class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12.5px] text-bad hover:bg-fill" role="menuitem" x-html="ICON('trash','',14)+'<span>'+t('dash.menu.delete')+'</span>'"></button>
+         </div>
+        </div>
+       </div>
+      </div>
+     </template>
+     <template x-if="!filtered.length">
+      <div>
+       <ui-empty icon="search" :title="t('dash.emptyTitle')" :body="q?t('dash.noMatch',{query:q}):t('dash.noMatchFilter',{filter:t('dash.filter'+filter.charAt(0).toUpperCase()+filter.slice(1))})">
+        <button type="button" class="btn" @click="q='';filter='all'" x-text="t('dash.clearFilters')"></button>
+        <a href="builder.html" class="btn btn-accent" x-text="t('dash.new')"></a>
+       </ui-empty>
+      </div>
+     </template>
+    </div>
+   </section>
+
+   <section class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3" aria-labelledby="tpl-title">
+    <div class="sm:col-span-3 flex items-baseline gap-2 px-1">
+     <h2 id="tpl-title" class="text-[13px] font-semibold" x-text="t('dash.templatesTitle')"></h2>
+     <p class="text-[12px] text-mute" x-text="t('dash.templatesBody')"></p>
+    </div>
+    <template x-for="tpl in DATA.templates.slice(0,3)" :key="tpl.id">
+     <a :href="'builder.html?wf='+tpl.wf" class="card p-4 hover:border-[var(--line-strong)] transition-colors group">
+      <div class="flex items-center gap-1.5">
+       <template x-for="id in tpl.services.slice(0,4)" :key="id"><ui-svc :id="id" :size="22"></ui-svc></template>
+       <span class="ml-auto text-mute group-hover:text-ink" x-html="ICON('arrow-right','',15)"></span>
+      </div>
+      <div class="text-[13px] font-semibold mt-3" x-text="tx(tpl.name)"></div>
+      <p class="text-[11.5px] text-mute mt-0.5 leading-snug" x-text="tx(tpl.body)"></p>
+     </a>
+    </template>
+   </section>
+
+   <p class="text-[11px] text-faint mt-8 px-1" x-text="t('app.server')"></p>
+  </div>
+ </div>
+
+ <dialog id="delete-wf" class="dlg" aria-labelledby="delete-wf-title">
+  <div class="dlg-card">
+   <div class="px-5 pt-5 pb-4 border-b border-line">
+    <h2 id="delete-wf-title" class="text-[16px] font-semibold" x-text="askDelete?t('dash.deleteTitle',{name:name(askDelete)}):''"></h2>
+    <p class="text-[12.5px] text-mute mt-1" x-text="t('dash.deleteBody')"></p>
+   </div>
+   <div class="p-4 flex justify-end gap-2">
+    <button type="button" class="btn btn-quiet" onclick="closeDialog('delete-wf')" x-text="t('common.cancel')"></button>
+    <button type="button" class="btn btn-danger" @click="confirmDelete()" x-text="t('common.delete')"></button>
+   </div>
+  </div>
+ </dialog>
+</div></ui-shell></body></html>

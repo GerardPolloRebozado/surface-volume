@@ -1,0 +1,99 @@
+<!doctype html><html lang="en"><head><title>Set up your workspace · area</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}</style></head><body>
+<ui-shell active="services"><div class="h-full flex flex-col" x-data="{
+  step: 1,
+  chosen: ['gmail','slack'],
+  tpl: null,
+  get tpls(){ return DATA.templates },
+  get svc(){ return DATA.services.find(s=>s.id==='gmail') || null },
+  get done(){ return this.step===3 },
+  get scratch(){ return this.tpl && this.tpl.id==='scratch' },
+  get finishCta(){ return this.tpl ? (this.scratch?t('onb.openEditor'):t('onb.goWorkflows')) : t('onb.goWorkflows') },
+  next(){ if(this.step<3) this.step++ },
+  prev(){ if(this.step>1) this.step-- },
+  toggle(svc){ if(this.chosen.includes(svc)) this.chosen=this.chosen.filter(c=>c!==svc); else this.chosen.push(svc); },
+  pick(t){ this.tpl=t; this.step=3; },
+  finish(){
+    toast(t('onb.finishLead')); announce(t('onb.finishLead'),true);
+  }
+}" class="h-full flex flex-col bg-win">
+
+ <header class="h-14 shrink-0 flex items-center gap-2 px-3 sm:px-6 border-b border-line bg-card">
+  <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.back')" @click="location='index.html'" x-html="ICON('arrow-left','',17)"></button>
+  <div class="min-w-0 flex-1">
+   <h2 class="text-[16px] font-semibold truncate" x-text="t('onb.title')"></h2>
+   <p class="text-[12px] text-mute truncate" x-text="t('onb.welcomeLead')"></p>
+  </div>
+ </header>
+
+ <div class="flex-1 min-h-0 overflow-auto scroll p-4 sm:px-6 lg:px-8 max-w-[900px] mx-auto space-y-7">
+
+  <div class="flex items-center justify-between mb-3">
+   <div class="text-[11px] font-semibold uppercase tracking-[.08em] text-faint" x-text="t('onb.step'+step)"></div>
+   <span class="pill shrink-0" x-text="t('onb.progress',{current:step,total:3})"></span>
+  </div>
+
+  <!-- Step 1: Services -->
+  <div x-show="step===1" x-cloak class="space-y-5">
+   <h3 class="text-[13px] font-semibold" x-text="t('onb.pickTitle')"></h3>
+   <p class="text-[12.5px] text-mute leading-relaxed" x-text="t('onb.pickLead')"></p>
+   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <template x-for="s in DATA.services.slice(0,5)" :key="s.id">
+     <label class="rounded-xl border border-line p-3 hover:border-accent transition-colors cursor-pointer group" :class="chosen.includes(s.id)?'bg-accent-soft border-accent':'border-line'">
+      <div class="flex items-center gap-2 mb-1">
+       <div class="w-8 h-8 rounded-lg grid place-items-center shrink-0" :style="'background:color-mix(in srgb,'+svcColor(s.id)+' 12%,transparent);color:'+svcColor(s.id)" x-html="ICON(svcIcon(s.id),'',16)"></div>
+       <div class="min-w-0 flex-1"><div class="text-[12.5px] font-semibold truncate" x-text="tx(s.name)"></div><div class="text-[10.5px] text-mute truncate" x-text="tx(s.blurb)"></div></div>
+       <span class="ml-auto" x-text="chosen.includes(s.id)?t('onb.connectedAs',{account:s.account}):t('onb.connect')"></span>
+      </div>
+      <ui-switch :bind="chosen.includes(s.id)" :label="t('common.toggleWorkflow',{name:tx(s.name)})" @click="toggle(s.id)" :aria-label="t('common.toggleWorkflow',{name:tx(s.name)})"></ui-switch>
+      <p class="hint mt-2" x-text="s.id==='gmail'?t('onb.whyGmail'):s.id==='drive'?t('onb.whyDrive'):s.id==='slack'?t('onb.whySlack'):s.id==='calendar'?t('onb.whyCalendar'):t('onb.whyNotion')"></p>
+     </label>
+    </template>
+   </div>
+   <p class="text-[11.5px] text-mute" x-text="t('onb.noneYet')"></p>
+   <p class="text-[11px] text-mute mt-2 leading-relaxed" x-text="t('onb.chosenCount',{n:chosen.length})"></p>
+  </div>
+
+  <!-- Step 2: Template -->
+  <div x-show="step===2" x-cloak class="space-y-5">
+   <h3 class="text-[13px] font-semibold" x-text="t('onb.templateTitle')"></h3>
+   <p class="text-[12.5px] text-mute leading-relaxed" x-text="t('onb.templateLead')"></p>
+   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <label class="rounded-xl border border-line p-4 hover:border-accent transition-colors cursor-pointer group" :class="scratch?'bg-accent-soft border-accent':'border-line'" @click="pick({id:'scratch',name:{en:'Start from scratch',fr:'Partir de zéro'},services:[],body:{en:'',fr:''}})">
+     <div class="flex items-center gap-2 mb-2"><span x-html="ICON('sliders','',18)"></span><span class="text-[12px] font-semibold truncate" x-text="t('onb.templateScratch')"></span></div>
+     <p class="text-[11px] text-mute leading-relaxed" x-text="t('onb.templateScratchBody')"></p>
+    </label>
+    <template x-for="tpl in tpls" :key="tpl.id">
+     <label class="rounded-xl border border-line p-4 hover:border-accent transition-colors cursor-pointer group" :class="tpl?.id===tpl.id?'bg-accent-soft border-accent':'border-line'" @click="pick(tpl)">
+      <div class="flex items-center gap-1.5 mb-2">
+       <template x-for="id in tpl.services.slice(0,4)" :key="id"><ui-svc :id="id" :size="18"></ui-svc></template>
+      </div>
+      <div class="text-[12.5px] font-semibold truncate" x-text="tx(tpl.name)"></div>
+      <p class="text-[10.5px] text-mute mt-1 leading-snug" x-text="tx(tpl.body)"></p>
+     </label>
+    </template>
+   </div>
+   <template x-if="!tpls.length"><p class="text-[11.5px] text-mute rounded-lg border border-dashed border-line p-4 text-center" x-text="t('services.empty')"></p></template>
+   <template x-if="tpl"><div class="rounded-lg p-3" style="background:var(--accent-soft)"><div class="flex items-center gap-2"><span x-html="ICON('check','',14,'',1.4)" class="shrink-0 text-accent"></span><div class="min-w-0 flex-1"><div class="text-[11.5px] font-medium truncate" x-text="t('onb.templateSelected',{name:tx(tpl.name)})"></div><div class="text-[10.5px] text-mute">Draft created · not running until you enable it.</div></div></div></div></template>
+  </div>
+
+  <!-- Step 3: Ready -->
+  <div x-show="step===3" x-cloak class="space-y-5">
+   <h3 class="text-[13px] font-semibold" x-text="t('onb.finishTitle')"></h3>
+   <p class="text-[12.5px] text-mute leading-relaxed" x-text="t('onb.finishLead')"></p>
+   <div class="space-y-3">
+    <template x-if="svc"><div class="flex items-start gap-3"><span class="mt-0.5 shrink-0" x-html="ICON(svcIcon(svc.id),'',16)"></span><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium" x-text="tx(svc.name)"></div><div class="text-[11px] text-mute" x-text="t('onb.finishService',{service:tx(svc.name)})"></div></div></div></template>
+    <template x-if="tpl&&tpl.id!=='scratch'"><div class="flex items-start gap-3"><span x-html="ICON('sliders','',16,'',1.4)" class="mt-0.5 shrink-0"></span><div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium" x-text="tx(tpl.name)"></div><div class="text-[11px] text-mute" x-text="t('onb.finishTemplate',{name:tx(tpl.name)})"></div></div></div></template>
+    <template x-if="!svc&&(!tpl||tpl.id==='scratch')"><p class="text-[11.5px] text-mute rounded-lg border border-line p-3" x-text="t('onb.finishNothing')"></p></template>
+   </div>
+   <div class="space-y-2">
+    <button type="button" class="btn btn-accent w-full" @click="finish()" x-text="finishCta"></button>
+   </div>
+  </div>
+
+ </div>
+
+ <div id="polite-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+ <div id="alert-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ <div id="toasts" role="region" :aria-label="t('common.help')"></div>
+</div></ui-shell>
+</body></html>
