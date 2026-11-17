@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
-import { RecoveryCodesModule } from './auth/recovery-codes/recovery-codes.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PingController } from './ping/ping.controller';
@@ -13,8 +11,6 @@ import { INestApplication } from '@nestjs/common';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ScheduleModule.forRoot(),
-    RecoveryCodesModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],

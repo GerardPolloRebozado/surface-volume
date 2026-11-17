@@ -55,7 +55,7 @@ erDiagram
 | `user_identities` | Links a local user to an OIDC identity. Unique `(provider, subject)`, where `subject` is the provider's stable `sub` claim, never the email. |
 | `sessions` | Refresh-token sessions. Each refresh rotates the token (`replaced_by_id`). Presenting a token that was already rotated revokes the whole `family_id`, because it means the token was stolen. Also backs the "Active sessions" screen. |
 | `mfa_factors` | TOTP secret, encrypted (SEC-AUTH). TOTP codes are computed from the secret, so they are never stored. |
-| `mfa_recovery_codes` | Hashed single-use recovery codes, issued on demand when the user cannot use their authenticator. A code lives `RECOVERY_CODE_TTL_MINUTES` (default **5 minutes**). The row is deleted **as soon as the code is used** (checked and deleted in one query, so it cannot be replayed) or **as soon as the TTL passes** (a timer started when the code is issued). A restart loses pending timers, so expired leftovers are deleted at startup, and each verification also clears that user's expired codes. An expired code is always rejected, whatever the timers do, because verification compares `created_at`. Logic: `RecoveryCodesService` in `src/auth/recovery-codes/`. |
+| `mfa_recovery_codes` | Hashed single-use recovery codes, issued on demand when the user cannot use their authenticator. A code is valid for **5 minutes**. Expiry is handled in the database: the SQL function `delete_expired_mfa_recovery_codes()` deletes every code older than 5 minutes, and a trigger runs it on each insert into the table. Deleting a code when it is used is not implemented yet. |
 | `login_attempts` | Sliding window for lockout and rate limiting, by identifier and by IP. |
 
 **Email confirmation and password reset (no table).** Both are sent as signed JWT links, so nothing is stored:
@@ -185,19 +185,20 @@ Erasure is not a bare `DELETE`. It runs in this order:
 | `trigger_events.payload` | 30 days | set to NULL. The dedup key is kept. |
 | `workflow_runs` / `run_steps` | 90 days | deleted (cascade) |
 | `oauth_states`, `idempotency_keys` | until `expires_at` | deleted |
-| `mfa_recovery_codes` | until used, or 5 minutes (`RECOVERY_CODE_TTL_MINUTES`) | deleted immediately |
+| `mfa_recovery_codes` | 5 minutes | deleted by `delete_expired_mfa_recovery_codes()` (called by a trigger on insert) |
 | `sessions` | until `expires_at` / revoked + 30 days | deleted |
 | `login_attempts` | 30 days | deleted |
 | `audit_logs`, `consents` | 1 year / legal requirement | archived, then deleted by a DB-owner job |
 
 ## What Prisma does not express (manual migration SQL)
 
-These are appended at the end of the migration and must be kept when it is regenerated:
+These live in hand-written migration SQL. In the init migration they are appended at the end and must be kept when it is regenerated:
 - the partial index `workflow_triggers_due_idx` (due enabled triggers)
 - the partial index `workflow_runs_inflight_idx` (queued/running runs)
 - the GIN index `templates_required_apps_gin`
 - the immutability triggers on `workflow_versions` and `prompt_versions`
 - the append-only trigger on `audit_logs`
+- migration `20261117100000_mfa_recovery_code_expiry`: the function `delete_expired_mfa_recovery_codes()` and the insert trigger on `mfa_recovery_codes` that calls it
 
 ## Not stored in the database
 
