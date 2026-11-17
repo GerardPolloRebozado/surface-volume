@@ -55,7 +55,7 @@ erDiagram
 | `user_identities` | Links a local user to an OIDC identity. Unique `(provider, subject)`, where `subject` is the provider's stable `sub` claim, never the email. |
 | `sessions` | Refresh-token sessions. Each refresh rotates the token (`replaced_by_id`). Presenting a token that was already rotated revokes the whole `family_id`, because it means the token was stolen. Also backs the "Active sessions" screen. |
 | `mfa_factors` | TOTP secret, encrypted (SEC-AUTH). TOTP codes are computed from the secret, so they are never stored. |
-| `mfa_recovery_codes` | Hashed single-use backup codes for a lost authenticator. A code is valid while `created_at + RECOVERY_CODE_TTL > now()`. The row is **deleted when the code is used**, so a used code cannot be replayed. `RecoveryCodeCleanupService` (`src/auth/recovery-codes/`) deletes expired rows daily at 03:00 UTC, with the TTL set by `RECOVERY_CODE_TTL_DAYS` (default 365). The user is warned before their codes expire and can regenerate them. |
+| `mfa_recovery_codes` | Hashed single-use recovery codes, issued on demand when the user cannot use their authenticator. A code lives `RECOVERY_CODE_TTL_MINUTES` (default **5 minutes**). The row is deleted **as soon as the code is used** (checked and deleted in one query, so it cannot be replayed) or **as soon as the TTL passes** (a timer started when the code is issued). A restart loses pending timers, so expired leftovers are deleted at startup, and each verification also clears that user's expired codes. An expired code is always rejected, whatever the timers do, because verification compares `created_at`. Logic: `RecoveryCodesService` in `src/auth/recovery-codes/`. |
 | `login_attempts` | Sliding window for lockout and rate limiting, by identifier and by IP. |
 
 **Email confirmation and password reset (no table).** Both are sent as signed JWT links, so nothing is stored:
@@ -185,7 +185,7 @@ Erasure is not a bare `DELETE`. It runs in this order:
 | `trigger_events.payload` | 30 days | set to NULL. The dedup key is kept. |
 | `workflow_runs` / `run_steps` | 90 days | deleted (cascade) |
 | `oauth_states`, `idempotency_keys` | until `expires_at` | deleted |
-| `mfa_recovery_codes` | until used, or `created_at + RECOVERY_CODE_TTL` | deleted |
+| `mfa_recovery_codes` | until used, or 5 minutes (`RECOVERY_CODE_TTL_MINUTES`) | deleted immediately |
 | `sessions` | until `expires_at` / revoked + 30 days | deleted |
 | `login_attempts` | 30 days | deleted |
 | `audit_logs`, `consents` | 1 year / legal requirement | archived, then deleted by a DB-owner job |
