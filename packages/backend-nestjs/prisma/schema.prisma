@@ -36,12 +36,6 @@ enum UserStatus {
   deleting // erasure in progress (SEC-GDPR)
 }
 
-enum VerificationPurpose {
-  email_verify
-  password_reset
-  email_change
-}
-
 enum MfaFactorType {
   totp
 }
@@ -196,29 +190,28 @@ model User {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
 
-  identities         UserIdentity[]
-  verificationTokens VerificationToken[]
-  sessions           Session[]
-  mfaFactors         MfaFactor[]
-  recoveryCodes      MfaRecoveryCode[]
-  loginAttempts      LoginAttempt[]
-  connections        Connection[]
-  oauthStates        OAuthState[]
-  workflows          Workflow[]
-  workflowVersions   WorkflowVersion[]
-  runs               WorkflowRun[]
-  idempotencyKeys    IdempotencyKey[]
-  templates          Template[]
-  prompts            Prompt[]
-  promptVersions     PromptVersion[]
-  reviewTasks        ReviewTask[]        @relation("ReviewAssignee")
-  evalDatasets       EvalDataset[]
-  files              File[]
-  auditLogs          AuditLog[]
-  consents           Consent[]
-  dataRequests       DataRequest[]
-  pushDevices        PushDevice[]
-  notifications      Notification[]
+  identities       UserIdentity[]
+  sessions         Session[]
+  mfaFactors       MfaFactor[]
+  recoveryCodes    MfaRecoveryCode[]
+  loginAttempts    LoginAttempt[]
+  connections      Connection[]
+  oauthStates      OAuthState[]
+  workflows        Workflow[]
+  workflowVersions WorkflowVersion[]
+  runs             WorkflowRun[]
+  idempotencyKeys  IdempotencyKey[]
+  templates        Template[]
+  prompts          Prompt[]
+  promptVersions   PromptVersion[]
+  reviewTasks      ReviewTask[]      @relation("ReviewAssignee")
+  evalDatasets     EvalDataset[]
+  files            File[]
+  auditLogs        AuditLog[]
+  consents         Consent[]
+  dataRequests     DataRequest[]
+  pushDevices      PushDevice[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -238,23 +231,6 @@ model UserIdentity {
   @@unique([provider, subject])
   @@index([userId])
   @@map("user_identities")
-}
-
-/// Email confirmation codes, password reset and email change links (stored hashed).
-model VerificationToken {
-  id         String              @id @default(uuid(7)) @db.Uuid
-  userId     String              @map("user_id") @db.Uuid
-  purpose    VerificationPurpose
-  tokenHash  String              @map("token_hash")
-  attempts   Int                 @default(0)
-  expiresAt  DateTime            @map("expires_at") @db.Timestamptz
-  consumedAt DateTime?           @map("consumed_at") @db.Timestamptz
-  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, purpose])
-  @@map("verification_tokens")
 }
 
 /// Refresh-token sessions with rotation. Reusing a rotated token revokes the whole family.
@@ -295,15 +271,19 @@ model MfaFactor {
   @@map("mfa_factors")
 }
 
+/// Single-use backup codes for a lost authenticator. Stored hashed.
+/// A code is valid while created_at + RECOVERY_CODE_TTL > now(). The row is deleted
+/// as soon as the code is used, and a scheduled job deletes expired rows.
 model MfaRecoveryCode {
-  id       String    @id @default(uuid(7)) @db.Uuid
-  userId   String    @map("user_id") @db.Uuid
-  codeHash String    @map("code_hash")
-  usedAt   DateTime? @map("used_at") @db.Timestamptz
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  codeHash  String   @map("code_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([createdAt])
   @@map("mfa_recovery_codes")
 }
 

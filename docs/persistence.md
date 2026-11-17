@@ -12,7 +12,7 @@ The schema covers the common base and every catalogue feature that needs storage
 | snake_case in SQL, camelCase in the Prisma client (`@map` / `@@map`) | Readable SQL for psql/debugging, idiomatic TS in code. |
 | `timestamptz` everywhere | Users and workers run in different timezones. |
 | `*_enc` = AES-256-GCM ciphertext + `key_version` | SEC-CRYPTO. Keys live outside the DB (Key Vault / env, SYS-SECRETS). `key_version` allows rotation without downtime: decrypt with the old key, re-encrypt with the new one. |
-| `*_hash` = SHA-256 of a one-time secret | Refresh tokens, verification codes, recovery codes. A DB dump never contains a usable secret. |
+| `*_hash` = SHA-256 of a one-time secret | Refresh tokens, recovery codes. A DB dump never contains a usable secret. |
 | JSONB is validated **before** insert | Postgres does not check what is inside a JSONB column. Every JSON column has a Zod schema at the API/domain boundary (ADR 0003). |
 | The service catalogue is **code, not data** | `AppDefinition`s (`src/workflow/`) are declared in TS. Rows reference them by string key (`app_id`, `trigger_key`, `action_key`). `/about.json`-style discovery reads the code registry. |
 
@@ -53,10 +53,15 @@ erDiagram
 |---|---|
 | `users` | Account. `email`/`username` are `citext` (case-insensitive unique). `password_hash` is null for OIDC-only accounts. `status` = `pending` until the email is confirmed. `preferences` (JSONB) holds UI settings: theme, density, reduce motion, notification toggles. |
 | `user_identities` | Links a local user to an OIDC identity. Unique `(provider, subject)`, where `subject` is the provider's stable `sub` claim, never the email. |
-| `verification_tokens` | Email confirmation code, password reset, email change. Hashed, expiring, single use (`consumed_at`), with an `attempts` counter against brute force. |
 | `sessions` | Refresh-token sessions. Each refresh rotates the token (`replaced_by_id`). Presenting a token that was already rotated revokes the whole `family_id`, because it means the token was stolen. Also backs the "Active sessions" screen. |
-| `mfa_factors`, `mfa_recovery_codes` | TOTP (secret encrypted) and hashed recovery codes (SEC-AUTH). |
+| `mfa_factors` | TOTP secret, encrypted (SEC-AUTH). TOTP codes are computed from the secret, so they are never stored. |
+| `mfa_recovery_codes` | Hashed single-use backup codes for a lost authenticator. A code is valid while `created_at + RECOVERY_CODE_TTL > now()`. The row is **deleted when the code is used**, so a used code cannot be replayed. `RecoveryCodeCleanupService` (`src/auth/recovery-codes/`) deletes expired rows daily at 03:00 UTC, with the TTL set by `RECOVERY_CODE_TTL_DAYS` (default 365). The user is warned before their codes expire and can regenerate them. |
 | `login_attempts` | Sliding window for lockout and rate limiting, by identifier and by IP. |
+
+**Email confirmation and password reset (no table).** Both are sent as signed JWT links, so nothing is stored:
+- **Confirmation link**: `{sub, purpose: "email_verify", email, exp}`. Using it twice is harmless. It also stops working if the email changes, because the `email` claim no longer matches.
+- **Reset link**: `{sub, purpose: "password_reset", pwd, exp}`, where `pwd` is a fingerprint of the current `password_hash`. Once the password changes, the fingerprint no longer matches, so the link is single-use without any stored state.
+- Both are short-lived (`exp` of 15 to 60 minutes) and signed with a key separate from the access-token key.
 
 **Linking external identities.**
 - On OIDC login, look up `(provider, sub)`. If found, sign that user in.
@@ -179,7 +184,8 @@ Erasure is not a bare `DELETE`. It runs in this order:
 |---|---|---|
 | `trigger_events.payload` | 30 days | set to NULL. The dedup key is kept. |
 | `workflow_runs` / `run_steps` | 90 days | deleted (cascade) |
-| `oauth_states`, `verification_tokens`, `idempotency_keys` | until `expires_at` | deleted |
+| `oauth_states`, `idempotency_keys` | until `expires_at` | deleted |
+| `mfa_recovery_codes` | until used, or `created_at + RECOVERY_CODE_TTL` | deleted |
 | `sessions` | until `expires_at` / revoked + 30 days | deleted |
 | `login_attempts` | 30 days | deleted |
 | `audit_logs`, `consents` | 1 year / legal requirement | archived, then deleted by a DB-owner job |
