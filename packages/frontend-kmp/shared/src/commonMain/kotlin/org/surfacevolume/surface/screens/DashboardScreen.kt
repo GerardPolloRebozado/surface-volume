@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -143,7 +145,9 @@ fun DashboardScreen(
     AppShell(
         modifier = modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+            ),
         sidebar = {
             SidebarContent(
                 name = name,
@@ -308,10 +312,11 @@ private fun ColumnScope.SidebarContent(
 private fun CompactNav(tab: DashboardTab, onSelect: (DashboardTab) -> Unit) {
     val colors = LocalAppColors.current
     Column(modifier = Modifier.fillMaxWidth().background(colors.card)) {
+        TopRule()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             DashboardTab.entries.forEach { item ->
@@ -324,7 +329,6 @@ private fun CompactNav(tab: DashboardTab, onSelect: (DashboardTab) -> Unit) {
                 )
             }
         }
-        TopRule()
     }
 }
 
