@@ -185,13 +185,13 @@ model User {
   status          UserStatus @default(pending)
   locale          String     @default("en")
   timezone        String     @default("UTC")
+  tokenVersion    Int        @default(0) @map("token_version")
   /// Theme, density, reduce-motion, notification toggles. Validated by Zod at the API.
   preferences     Json       @default("{}")
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
 
   identities       UserIdentity[]
-  sessions         Session[]
   mfaFactors       MfaFactor[]
   recoveryCodes    MfaRecoveryCode[]
   loginAttempts    LoginAttempt[]
@@ -231,29 +231,6 @@ model UserIdentity {
   @@unique([provider, subject])
   @@index([userId])
   @@map("user_identities")
-}
-
-/// Refresh-token sessions with rotation. Reusing a rotated token revokes the whole family.
-model Session {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  userId           String    @map("user_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash")
-  familyId         String    @map("family_id") @db.Uuid
-  replacedById     String?   @unique @map("replaced_by_id") @db.Uuid
-  userAgent        String?   @map("user_agent")
-  ip               String?
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz
-  expiresAt        DateTime  @map("expires_at") @db.Timestamptz
-  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz
-
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replacedBy Session? @relation("SessionRotation", fields: [replacedById], references: [id], onDelete: SetNull)
-  replaces   Session? @relation("SessionRotation")
-
-  @@index([userId])
-  @@index([familyId])
-  @@map("sessions")
 }
 
 model MfaFactor {

@@ -3,9 +3,18 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as fs from 'fs';
 import * as path from 'path';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(cookieParser());
+  app.use((req: any, _res: any, next: any) => {
+    if (!req.headers.authorization && req.cookies?.access_token) {
+      req.headers.authorization = `Bearer ${req.cookies.access_token}`;
+    }
+    next();
+  });
 
   // CORS for KMP frontend (Android emulator + web)
   app.enableCors({
