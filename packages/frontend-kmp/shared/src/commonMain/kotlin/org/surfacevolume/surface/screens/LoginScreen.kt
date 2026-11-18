@@ -1,4 +1,4 @@
-package org.surfacevolume.surface
+package org.surfacevolume.surface.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.Brand
 import org.surfacevolume.surface.components.Button
 import org.surfacevolume.surface.components.ButtonVariant
