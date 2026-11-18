@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -38,15 +41,18 @@ fun ListRow(
     val colors = LocalAppColors.current
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+    var focused by remember { mutableStateOf(false) }
     val interactive = onClick != null
 
     Row(
         modifier = modifier
+            .focusRing(interactive && focused, colors.accentSoft, 10.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (interactive && hovered) colors.fill else Color.Transparent)
             .then(
                 if (interactive) {
                     Modifier
+                        .onFocusChanged { focused = it.isFocused }
                         .hoverable(interaction)
                         .clickable(role = Role.Button, onClick = onClick)
                 } else {

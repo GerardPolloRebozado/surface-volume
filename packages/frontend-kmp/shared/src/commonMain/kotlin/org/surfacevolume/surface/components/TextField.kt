@@ -19,13 +19,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -43,6 +41,8 @@ fun TextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     enabled: Boolean = true,
+    label: String? = null,
+    contentType: ContentType? = null,
 ) {
     val colors = LocalAppColors.current
     val interaction = remember { MutableInteractionSource() }
@@ -53,7 +53,17 @@ fun TextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .focusRing(focused, colors.accentSoft)
+            .focusRing(focused, colors.accentSoft, 8.dp)
+            .then(
+                if (label != null || contentType != null) {
+                    Modifier.semantics(mergeDescendants = true) {
+                        if (label != null) contentDescription = label
+                        if (contentType != null) this.contentType = contentType
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .defaultMinSize(minHeight = 38.dp)
             .background(colors.card, shape)
             .border(1.dp, if (focused) colors.accent else colors.lineStrong, shape)
@@ -81,22 +91,5 @@ fun TextField(
                 innerTextField()
             }
         },
-    )
-}
-
-/**
- * The focus state is a 3px ring outside the border. Drawing it behind the field keeps
- * the input's size the same at all times.
- */
-private fun Modifier.focusRing(focused: Boolean, color: Color): Modifier = drawBehind {
-    if (!focused) return@drawBehind
-    val stroke = 3.dp.toPx()
-    val inset = stroke * 1.5f
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(-inset, -inset),
-        size = Size(size.width + inset * 2, size.height + inset * 2),
-        cornerRadius = CornerRadius(8.dp.toPx() + inset),
-        style = Stroke(width = stroke),
     )
 }

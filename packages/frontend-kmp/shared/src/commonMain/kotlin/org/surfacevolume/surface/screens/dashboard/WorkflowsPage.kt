@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -152,6 +154,7 @@ private fun Greeting(
             fontSize = 26.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = (-0.5).sp,
+            modifier = Modifier.semantics { heading() },
         )
         Text(
             text = "${workflows.size} workflows · 128 runs this week · 4 failed",
@@ -192,9 +195,18 @@ private fun SuccessCard(modifier: Modifier = Modifier, fillHeight: Boolean = fal
             deltaTone = PillTone.Ok,
         )
         if (fillHeight) {
-            BarChart(values = DemoPerDay, modifier = Modifier.weight(1f), height = null)
+            BarChart(
+                values = DemoPerDay,
+                modifier = Modifier.weight(1f),
+                height = null,
+                contentDescription = "Success rate per day, last 14 days",
+            )
         } else {
-            BarChart(values = DemoPerDay, height = 88.dp)
+            BarChart(
+                values = DemoPerDay,
+                height = 88.dp,
+                contentDescription = "Success rate per day, last 14 days",
+            )
         }
         TopRule()
         Row(
@@ -426,7 +438,15 @@ private fun WorkflowRow(
                         onClick = onRun,
                     )
                 }
-                Switch(checked = workflow.enabled, onCheckedChange = onToggle)
+                Switch(
+                    checked = workflow.enabled,
+                    onCheckedChange = onToggle,
+                    label = if (workflow.enabled) {
+                        "Disable ${workflow.name}"
+                    } else {
+                        "Enable ${workflow.name}"
+                    },
+                )
             },
         )
     }

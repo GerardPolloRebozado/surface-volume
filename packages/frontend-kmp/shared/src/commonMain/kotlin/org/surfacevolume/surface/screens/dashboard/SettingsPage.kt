@@ -69,7 +69,13 @@ internal fun SettingsPage(
                         fontSize = 11.5.sp,
                     )
                 },
-                trailing = { Switch(checked = darkTheme, onCheckedChange = { onToggleTheme() }) },
+                trailing = {
+                    Switch(
+                        checked = darkTheme,
+                        onCheckedChange = { onToggleTheme() },
+                        label = "Dark mode",
+                    )
+                },
             )
             ListRow(
                 content = {

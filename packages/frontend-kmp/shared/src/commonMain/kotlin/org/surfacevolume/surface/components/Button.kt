@@ -13,11 +13,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
@@ -42,9 +45,11 @@ fun Button(
     fontWeight: FontWeight = FontWeight.SemiBold,
 ) {
     val colors = LocalAppColors.current
-    val shape = RoundedCornerShape(if (pill) 99.dp else if (small) 8.dp else 9.dp)
+    val radius = if (pill) 99.dp else if (small) 8.dp else 9.dp
+    val shape = RoundedCornerShape(radius)
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+    var focused by remember { mutableStateOf(false) }
 
     val background = when (variant) {
         ButtonVariant.Default -> if (hovered) colors.fillHover else colors.fill
@@ -63,6 +68,8 @@ fun Button(
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.45f)
+            .onFocusChanged { focused = it.isFocused }
+            .focusRing(focused, colors.accentSoft, radius)
             .clip(shape)
             .background(background)
             .then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)

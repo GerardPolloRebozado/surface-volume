@@ -9,9 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +37,7 @@ fun TextLink(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+    var focused by remember { mutableStateOf(false) }
     Text(
         text = text,
         color = if (hovered) hoverColor else color,
@@ -41,6 +45,8 @@ fun TextLink(
         fontWeight = fontWeight,
         textDecoration = if (hovered && underlineOnHover) TextDecoration.Underline else null,
         modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusRing(focused, LocalAppColors.current.accentSoft, 6.dp)
             .clip(RoundedCornerShape(6.dp))
             .hoverable(interaction)
             .clickable(role = Role.Button, onClick = onClick)

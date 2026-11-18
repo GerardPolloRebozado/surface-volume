@@ -30,13 +30,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -144,6 +147,8 @@ fun LoginScreen(
                                 onNext = { passwordFocus.requestFocus() },
                             ),
                             modifier = Modifier.fillMaxWidth(),
+                            label = AuthStrings.email,
+                            contentType = ContentType.EmailAddress,
                         )
                     }
 
@@ -160,6 +165,9 @@ fun LoginScreen(
                                 color = colors.mute,
                                 hoverColor = colors.ink,
                                 fontSize = 10.sp,
+                                modifier = Modifier.semantics {
+                                    stateDescription = if (showingPassword) "Password shown" else "Password hidden"
+                                },
                             )
                         }
                         TextField(
@@ -182,6 +190,8 @@ fun LoginScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(passwordFocus),
+                            label = AuthStrings.password,
+                            contentType = ContentType.Password,
                         )
                     }
 

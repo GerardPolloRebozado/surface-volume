@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,31 +51,51 @@ internal fun RunsPage(runs: List<Run>) {
             )
         }
         Card(contentPadding = 8.dp, contentSpacing = 0.dp) {
-            visible.forEachIndexed { index, run ->
-                if (index > 0) TopRule()
-                ListRow(
-                    leading = { ServiceIcon(icon = run.service.icon, tint = run.service.tint, size = 26.dp) },
-                    content = {
-                        Text(
-                            text = run.workflow,
-                            color = LocalAppColors.current.ink,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            text = "${run.whenLabel} · ${run.duration}",
-                            color = LocalAppColors.current.mute,
-                            fontSize = 11.5.sp,
-                        )
-                    },
-                    trailing = {
-                        Pill(
-                            text = if (run.ok) "Succeeded" else "Failed",
-                            tone = if (run.ok) PillTone.Ok else PillTone.Bad,
-                            icon = if (run.ok) AppIcon.Check else AppIcon.X,
-                        )
-                    },
-                )
+            if (visible.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "No failed runs",
+                        color = LocalAppColors.current.ink,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Every run in the last seven days succeeded.",
+                        color = LocalAppColors.current.mute,
+                        fontSize = 12.sp,
+                    )
+                }
+            } else {
+                visible.forEachIndexed { index, run ->
+                    if (index > 0) TopRule()
+                    ListRow(
+                        leading = { ServiceIcon(icon = run.service.icon, tint = run.service.tint, size = 26.dp) },
+                        content = {
+                            Text(
+                                text = run.workflow,
+                                color = LocalAppColors.current.ink,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                text = "${run.whenLabel} · ${run.duration}",
+                                color = LocalAppColors.current.mute,
+                                fontSize = 11.5.sp,
+                            )
+                        },
+                        trailing = {
+                            Pill(
+                                text = if (run.ok) "Succeeded" else "Failed",
+                                tone = if (run.ok) PillTone.Ok else PillTone.Bad,
+                                icon = if (run.ok) AppIcon.Check else AppIcon.X,
+                            )
+                        },
+                    )
+                }
             }
         }
     }

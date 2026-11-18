@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.surfacevolume.surface.LocalAppColors
 
@@ -46,7 +48,8 @@ fun AppShell(
                     modifier = Modifier
                         .width(248.dp)
                         .fillMaxHeight()
-                        .background(colors.side),
+                        .background(colors.side)
+                        .semantics { isTraversalGroup = true },
                     content = sidebar,
                 )
                 Box(
@@ -61,6 +64,7 @@ fun AppShell(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
+                            .semantics { isTraversalGroup = true }
                             .windowInsetsPadding(
                                 WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
                             ),
@@ -71,12 +75,19 @@ fun AppShell(
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
                 bar()
-                Box(modifier = Modifier.weight(1f).fillMaxWidth(), content = content)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .semantics { isTraversalGroup = true },
+                    content = content,
+                )
                 if (compactNav != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(colors.card)
+                            .semantics { isTraversalGroup = true }
                             .windowInsetsPadding(
                                 WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
                             ),

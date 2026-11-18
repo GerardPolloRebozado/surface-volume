@@ -13,12 +13,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,9 +41,12 @@ fun NavItem(
     val colors = LocalAppColors.current
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+    var focused by remember { mutableStateOf(false) }
 
     Row(
         modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusRing(focused, colors.accentSoft, 8.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(
                 when {
@@ -49,6 +57,7 @@ fun NavItem(
             )
             .hoverable(interaction)
             .clickable(role = Role.Tab, onClick = onClick)
+            .semantics { this.selected = selected }
             .defaultMinSize(minHeight = 32.dp)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
