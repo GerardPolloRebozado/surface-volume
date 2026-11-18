@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><title>area · the workflow is the page</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M7 19.5C7 13 12.5 7 19.5 7' fill='none' stroke='%231b6fc4' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='19.5' r='3.1' fill='%231b6fc4'/%3E%3Ccircle cx='19.5' cy='7' r='2.6' fill='%23fff' stroke='%231b6fc4' stroke-width='2'/%3E%3C/svg%3E"><script src="https://cdn.tailwindcss.com/3.4.17"></script><script src="theme.js"></script><script src="data.js"></script><script defer src="components.js"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script><style>[x-cloak]{display:none!important}
+.flow-line{stroke-dasharray:8 6;animation:dash 1.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-28}}
+</style></head><body class="bg-win text-ink" x-data="{tidy:false}">
+
+<header class="sticky top-0 z-40 bg-card/80 backdrop-blur border-b border-line">
+  <div class="max-w-[900px] mx-auto px-6 h-14 flex items-center justify-between">
+    <a href="index.html" class="font-black tracking-tighter text-[20px]">area<span class="text-accent">.</span></a>
+    <div class="flex items-center gap-2">
+      <a href="signin.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <button class="btn btn-accent btn-sm" @click="tidy=!tidy">Tidy up</button>
+    </div>
+  </div>
+</header>
+
+<!-- Hero knot -->
+<section class="relative overflow-hidden min-h-[70vh]">
+  <svg class="absolute inset-0 w-full h-full" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g stroke-width="14" fill="none" opacity="0.9">
+      <path d="M-50 100 C 200 300, 400 -50, 600 200 S 900 400, 1250 150" stroke="#1b6fc4"/>
+      <path d="M-50 300 C 250 50, 450 400, 650 150 S 950 50, 1250 350" stroke="#17764a"/>
+      <path d="M-50 500 C 200 200, 500 600, 700 300 S 1000 100, 1250 550" stroke="#7b3f93"/>
+      <path d="M-50 200 C 300 450, 500 50, 700 400 S 950 250, 1250 200" stroke="#8a5a00"/>
+    </g>
+  </svg>
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div class="text-center max-w-[520px]">
+      <div class="card p-8 space-y-4 bg-card/95 backdrop-blur">
+        <h1 class="text-[64px] leading-[0.9] font-black tracking-tighter text-ink">Chaos in.<br>Clarity out.</h1>
+        <p class="text-[16px] text-mute">The product's own auto-arrange, demonstrated on the page itself.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="max-w-[900px] mx-auto px-6 py-16">
+  <div class="relative">
+    <div class="absolute left-6 top-0 bottom-0 w-px bg-line"></div>
+
+    <div class="relative pl-16 pb-12">
+      <div class="absolute left-0 top-2 w-12 h-12 rounded-full bg-accent grid place-items-center text-white font-bold">1</div>
+      <div class="card p-6 space-y-3" style="background:rgba(27,111,196,0.18)">
+        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-accent">Node 1 · trigger</span>
+        <h2 class="text-[28px] font-black tracking-tight">A visitor arrives</h2>
+        <p class="text-[14px] text-mute">Language, time of day, dark mode — all known without asking.</p>
+      </div>
+    </div>
+
+    <div class="relative pl-16 pb-12">
+      <div class="absolute left-0 top-2 w-12 h-12 rounded-full bg-card border-2 border-accent grid place-items-center text-accent font-bold">2</div>
+      <div class="card p-6 space-y-3" style="background:rgba(23,118,74,0.18)">
+        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-accent">Node 2 · problem</span>
+        <h2 class="text-[28px] font-black tracking-tight">Six minutes of pretending to be a robot</h2>
+        <p class="text-[14px] text-mute">Open mail, download, rename, upload, paste, message. Collapse into one node.</p>
+      </div>
+    </div>
+
+    <div class="relative pl-16 pb-12">
+      <div class="absolute left-0 top-2 w-12 h-12 rounded-full bg-card border-2 border-accent grid place-items-center text-accent font-bold">3</div>
+      <div class="card p-6 space-y-3" style="background:rgba(138,90,0,0.18)">
+        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-accent">Node 3 · action</span>
+        <h2 class="text-[28px] font-black tracking-tight">Connect. Draw. Point. Run.</h2>
+        <p class="text-[14px] text-mute">Grant access in plain words. Drag a line. Click a value. Watch it go.</p>
+      </div>
+    </div>
+
+    <div class="relative pl-16 pb-12">
+      <div class="absolute left-0 top-2 w-12 h-12 rounded-full bg-card border-2 border-accent grid place-items-center text-accent font-bold">4</div>
+      <div class="card p-6 space-y-3" style="background:rgba(187,29,40,0.18)">
+        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-accent">Node 4 · failure</span>
+        <h2 class="text-[28px] font-black tracking-tight">Notion token expired</h2>
+        <p class="text-[14px] text-mute">The workflow is untouched. Reconnect and retry — the steps that already succeeded are not repeated.</p>
+        <button class="btn btn-sm btn-ghost">Retry</button>
+      </div>
+    </div>
+
+    <div class="relative pl-16">
+      <div class="absolute left-0 top-2 w-12 h-12 rounded-full bg-ok grid place-items-center text-white font-bold">✓</div>
+      <div class="card p-6 space-y-4" style="background:rgba(23,118,74,0.18)">
+        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-ok">Node 5 · done</span>
+        <h2 class="text-[28px] font-black tracking-tight">Ready to tidy up?</h2>
+        <div class="flex items-center gap-3">
+          <a href="builder.html" class="btn btn-accent">Try the editor</a>
+          <a href="onboarding.html" class="btn btn-quiet">Create an account</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-16 card p-6">
+    <h3 class="font-semibold mb-2">Run log</h3>
+    <div class="space-y-1 text-[12px] font-mono text-mute">
+      <div>trigger: visitor arrived</div>
+      <div>condition: over 500 → true</div>
+      <div>action: saved to Drive</div>
+      <div class="text-bad">step 3: Notion token expired</div>
+      <div class="text-ok">retry: succeeded</div>
+    </div>
+  </div>
+
+  <div class="mt-8 card p-6">
+    <h3 class="font-semibold mb-2">For developers and evaluators</h3>
+    <p class="text-[13px] text-mute mb-3">Catalogue discovered at runtime. API, guide, source — all real.</p>
+    <div class="flex flex-wrap gap-2">
+      <a href="#" class="btn btn-quiet btn-sm">API</a>
+      <a href="#" class="btn btn-quiet btn-sm">Guide</a>
+      <a href="#" class="btn btn-quiet btn-sm">Source</a>
+    </div>
+    <code class="block bg-sunken p-3 rounded-lg text-[12px] font-mono mt-3">./gradlew bootRun</code>
+  </div>
+</main>
+
+<footer class="border-t border-line mt-12">
+  <div class="max-w-[900px] mx-auto px-6 py-8 text-[12px] text-faint">Built at Epitech. No cookies. No tracking. Just a workflow.</div>
+</footer>
+</body></html>
