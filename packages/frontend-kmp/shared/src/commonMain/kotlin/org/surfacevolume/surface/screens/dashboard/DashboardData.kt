@@ -1,4 +1,4 @@
-package org.surfacevolume.surface.screens
+package org.surfacevolume.surface.screens.dashboard
 
 import androidx.compose.ui.graphics.Color
 import org.surfacevolume.surface.components.AppIcon

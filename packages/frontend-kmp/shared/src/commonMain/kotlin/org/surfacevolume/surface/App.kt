@@ -6,8 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.surfacevolume.surface.screens.DashboardScreen
 import org.surfacevolume.surface.screens.LoginScreen
+import org.surfacevolume.surface.screens.dashboard.DashboardScreen
 
 @Composable
 fun App() {
