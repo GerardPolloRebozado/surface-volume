@@ -1,5 +1,13 @@
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
 
+* [/core](./core/src) is the business logic shared by every UI, Compose or not:
+  DTOs mirroring the API contract (`Models.kt`), helpers over the workflow graph
+  (`WorkflowGraph.kt`) and the contract's fixtures decoded for the demo
+  (`DemoData.kt`). It has no Compose dependency. The JSON it decodes is
+  `packages/contract/fixtures`, the same files the React app imports, and
+  `:core:jvmTest` decodes them with `ignoreUnknownKeys = false` so a change on
+  one side fails the build on the other.
+
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 

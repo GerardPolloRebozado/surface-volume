@@ -5,6 +5,10 @@
     "packages/*"
   ],
   "scripts": {
+    "test:core": "cd packages/frontend-kmp && ./gradlew :core:jvmTest",
+    "dev:web": "pnpm --filter surface-web run dev",
+    "build:web": "pnpm --filter surface-web run build",
+    "lint:web": "pnpm --filter surface-web run lint",
     "build:backend": "pnpm --filter backend-nestjs run build",
     "test:backend": "pnpm --filter backend-nestjs run test",
     "generate:api-client": "bash scripts/generate-api-client.sh"

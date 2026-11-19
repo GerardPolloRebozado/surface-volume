@@ -1,0 +1,97 @@
+[
+  {
+    "id": "gmail",
+    "name": "Gmail",
+    "triggers": {
+      "new_email": "Mail from someone"
+    },
+    "actions": {
+      "send_email": "Send an email"
+    }
+  },
+  {
+    "id": "drive",
+    "name": "Google Drive",
+    "triggers": {
+      "file_added": "File added to a folder"
+    },
+    "actions": {
+      "upload_file": "Upload a file",
+      "move_file": "Move a file"
+    }
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "triggers": {},
+    "actions": {
+      "post_message": "Post a message"
+    }
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "triggers": {},
+    "actions": {
+      "add_row": "Add a database row",
+      "update_page": "Update a page"
+    }
+  },
+  {
+    "id": "calendar",
+    "name": "Google Calendar",
+    "triggers": {
+      "event_starting": "Event starts soon"
+    },
+    "actions": {
+      "create_event": "Create an event"
+    }
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "triggers": {
+      "issue_opened": "Issue opened"
+    },
+    "actions": {
+      "create_issue": "Open an issue",
+      "add_label": "Add a label"
+    }
+  },
+  {
+    "id": "linear",
+    "name": "Linear",
+    "triggers": {},
+    "actions": {
+      "create_issue": "Create an issue"
+    }
+  },
+  {
+    "id": "stripe",
+    "name": "Stripe",
+    "triggers": {
+      "payment_failed": "Payment fails"
+    },
+    "actions": {
+      "refund": "Refund a charge"
+    }
+  },
+  {
+    "id": "webhook",
+    "name": "Webhook",
+    "triggers": {
+      "incoming": "Incoming request"
+    },
+    "actions": {
+      "call": "Call a URL"
+    }
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "triggers": {},
+    "actions": {
+      "post_message": "Post a message"
+    }
+  }
+]

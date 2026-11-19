@@ -80,6 +80,7 @@ fun DashboardScreen(
             workflows[index] = workflow.copy(
                 enabled = enabled,
                 draft = if (enabled) false else workflow.draft,
+                needsAttention = false,
             )
         }
     }

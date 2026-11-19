@@ -1,0 +1,58 @@
+[
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000201",
+    "appId": "gmail",
+    "appName": "Gmail",
+    "account": "alex.martin@gmail.com",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000202",
+    "appId": "drive",
+    "appName": "Google Drive",
+    "account": "alex.martin@gmail.com",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000203",
+    "appId": "slack",
+    "appName": "Slack",
+    "account": "area-lab.slack.com",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000204",
+    "appId": "notion",
+    "appName": "Notion",
+    "account": "alex.martin@epitech.eu",
+    "status": "expired"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000205",
+    "appId": "calendar",
+    "appName": "Google Calendar",
+    "account": "alex.martin@epitech.eu",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000206",
+    "appId": "github",
+    "appName": "GitHub",
+    "account": "@amartin",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000207",
+    "appId": "linear",
+    "appName": "Linear",
+    "account": "@alex",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000208",
+    "appId": "webhook",
+    "appName": "Webhook",
+    "account": "area.epitech.eu/hooks/9f2c",
+    "status": "active"
+  }
+]
