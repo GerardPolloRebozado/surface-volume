@@ -5,3 +5,7 @@ PRODUCT_BUNDLE_IDENTIFIER=org.surfacevolume.surface.Surface$(TEAM_ID)
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
+
+# Backend URL. Override per build configuration (Debug/Release) or via the
+# SURFACE_VOLUME_API_BASE_URL environment variable at runtime (dev convenience).
+API_BASE_URL=http://localhost:8080
