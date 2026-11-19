@@ -29,6 +29,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+
+        val apiBaseUrl = (project.findProperty("surface.api.baseUrl") as String?)
+            ?: System.getenv("SURFACE_VOLUME_API_BASE_URL")
+            ?: "http://10.0.2.2:8080"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
     packaging {
         resources {
@@ -50,5 +55,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
