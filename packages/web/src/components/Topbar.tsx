@@ -1,29 +1,30 @@
 import type { ReactNode } from 'react'
 
-import { useOpenMobileNav } from '@/components/nav-context'
 import { Icon } from '@/components/Icon'
 
 export function Topbar({
   title,
   subtitle,
   children,
+  onOpenNav,
 }: {
   title: string
   subtitle?: string
   children?: ReactNode
+  onOpenNav?: () => void
 }) {
-  const openNav = useOpenMobileNav()
-
   return (
     <header className="flex h-[56px] shrink-0 items-center gap-3 border-b border-line bg-card px-4 sm:px-6">
-      <button
-        type="button"
-        onClick={openNav}
-        className="btn btn-ghost btn-icon btn-sm -ml-1 lg:hidden"
-        aria-label="Open navigation"
-      >
-        <Icon name="list" size={17} />
-      </button>
+      {onOpenNav ? (
+        <button
+          type="button"
+          onClick={onOpenNav}
+          className="btn btn-ghost btn-icon btn-sm -ml-1 lg:hidden"
+          aria-label="Open navigation"
+        >
+          <Icon name="list" size={17} />
+        </button>
+      ) : null}
 
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[16px] font-semibold">{title}</h1>

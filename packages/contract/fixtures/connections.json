@@ -2,57 +2,57 @@
   {
     "id": "0199a0c0-0000-7000-8000-000000000201",
     "appId": "gmail",
-    "appName": "Gmail",
-    "account": "alex.martin@gmail.com",
+    "appName": "HoloNet Mail",
+    "account": "luke.skywalker@gmail.com",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000202",
     "appId": "drive",
-    "appName": "Google Drive",
-    "account": "alex.martin@gmail.com",
+    "appName": "Death Star Plans Vault",
+    "account": "luke.skywalker@gmail.com",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000203",
     "appId": "slack",
-    "appName": "Slack",
-    "account": "area-lab.slack.com",
+    "appName": "Rebel Comms",
+    "account": "rebel-alliance.comms",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000204",
     "appId": "notion",
-    "appName": "Notion",
-    "account": "alex.martin@epitech.eu",
+    "appName": "Jedi Archives",
+    "account": "luke.skywalker@tatooine.net",
     "status": "expired"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000205",
     "appId": "calendar",
-    "appName": "Google Calendar",
-    "account": "alex.martin@epitech.eu",
+    "appName": "Imperial Schedule",
+    "account": "luke.skywalker@tatooine.net",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000206",
     "appId": "github",
-    "appName": "GitHub",
-    "account": "@amartin",
+    "appName": "Droid Forge",
+    "account": "@lskywalker",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000207",
     "appId": "linear",
-    "appName": "Linear",
-    "account": "@alex",
+    "appName": "Order Tracker",
+    "account": "@luke",
     "status": "active"
   },
   {
     "id": "0199a0c0-0000-7000-8000-000000000208",
     "appId": "webhook",
-    "appName": "Webhook",
-    "account": "area.epitech.eu/hooks/9f2c",
+    "appName": "Hypercomms Relay",
+    "account": "tatooine.net/hooks/9f2c",
     "status": "active"
   }
 ]

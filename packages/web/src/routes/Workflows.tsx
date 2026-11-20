@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
 
 import { Topbar } from '@/components/Topbar'
 import { Icon, type IconName } from '@/components/Icon'
@@ -12,7 +11,7 @@ import {
   NOW,
   SERVICES,
   STATS,
-  WORKFLOWS,
+  allWorkflows,
   expiredService,
   service,
   statusOf,
@@ -144,12 +143,12 @@ function WorkflowRow({
 
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex flex-wrap items-center gap-2">
-            <Link
-              to={`/builder/${flow.id}`}
+            <a
+              href={`/builder/${flow.id}`}
               className="truncate text-[14px] font-semibold underline-offset-2 hover:underline"
             >
               {flow.name}
-            </Link>
+            </a>
             <StatusPill item={item} />
           </div>
           <div className="text-[11.5px] leading-relaxed text-mute">
@@ -217,22 +216,22 @@ function WorkflowRow({
               role="menu"
               className="card rise absolute right-0 top-full z-30 mt-2 w-[190px] p-1.5"
             >
-              <Link
-                to={`/builder/${flow.id}`}
+              <a
+                href={`/builder/${flow.id}`}
                 role="menuitem"
                 className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[12.5px] hover:bg-fill"
               >
                 <Icon name="sliders" size={14} />
                 Edit workflow
-              </Link>
-              <Link
-                to={`/runs?workflow=${flow.id}`}
+              </a>
+              <a
+                href={`/runs?workflow=${flow.id}`}
                 role="menuitem"
                 className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[12.5px] hover:bg-fill"
               >
                 <Icon name="activity" size={14} />
                 Run history
-              </Link>
+              </a>
               <button
                 type="button"
                 role="menuitem"
@@ -270,7 +269,7 @@ function WorkflowRow({
 }
 
 export function WorkflowsRoute() {
-  const [items, setItems] = useState<WorkflowListItem[]>(WORKFLOWS)
+  const [items, setItems] = useState<WorkflowListItem[]>(() => allWorkflows())
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
@@ -375,10 +374,10 @@ export function WorkflowsRoute() {
             type="search"
           />
         </label>
-        <Link to="/builder/new" className="btn btn-accent">
+        <a href="/builder/new" className="btn btn-accent">
           <Icon name="plus" size={15} />
           <span>New workflow</span>
-        </Link>
+        </a>
       </Topbar>
 
       <div className="scroll flex-1 overflow-auto">
@@ -420,13 +419,13 @@ export function WorkflowsRoute() {
                 </div>
                 <div className="mt-2.5 flex gap-2">
                   {attentionService ? (
-                    <Link to={`/services?service=${attentionService}`} className="btn btn-sm">
+                    <a href={`/services?service=${attentionService}`} className="btn btn-sm">
                       Reconnect {service(attentionService).name}
-                    </Link>
+                    </a>
                   ) : null}
-                  <Link to={`/runs?workflow=${attention.workflow.id}`} className="btn btn-sm btn-ghost">
+                  <a href={`/runs?workflow=${attention.workflow.id}`} className="btn btn-sm btn-ghost">
                     See failed runs
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
@@ -441,10 +440,10 @@ export function WorkflowsRoute() {
                   </h3>
                   <p className="mt-0.5 text-[11.5px] text-mute">Per day, last two weeks</p>
                 </div>
-                <Link to="/runs" className="inline-flex items-center gap-1 text-[12px] text-mute hover:text-ink">
+                <a href="/runs" className="inline-flex items-center gap-1 text-[12px] text-mute hover:text-ink">
                   View all
                   <Icon name="arrow-right" size={13} />
-                </Link>
+                </a>
               </div>
               <div className="mt-2.5 flex items-end gap-3">
                 <div className="num text-[38px] font-semibold leading-none tracking-tight">
@@ -480,17 +479,17 @@ export function WorkflowsRoute() {
                 <h3 id="activity-title" className="text-[13px] font-semibold">
                   Activity
                 </h3>
-                <Link to="/runs" className="text-[12px] text-mute hover:text-ink">
+                <a href="/runs" className="text-[12px] text-mute hover:text-ink">
                   View all
-                </Link>
+                </a>
               </div>
               <div className="-mx-1 mt-2">
                 {activity.map(({ run, workflowName, appId }) => {
                   const outcome = runOutcome(run.status)
                   return (
-                    <Link
+                    <a
                       key={run.id}
-                      to={`/runs?run=${run.id}`}
+                      href={`/runs?run=${run.id}`}
                       className="flex items-center gap-2.5 rounded-lg px-1 py-[7px] hover:bg-fill"
                     >
                       <ServiceMark id={appId} size={22} />
@@ -503,7 +502,7 @@ export function WorkflowsRoute() {
                         size={14}
                         className={TONE_CLASS[outcome.tone]}
                       />
-                    </Link>
+                    </a>
                   )
                 })}
               </div>
@@ -574,9 +573,9 @@ export function WorkflowsRoute() {
                     >
                       Clear filters
                     </button>
-                    <Link to="/builder/new" className="btn btn-accent">
+                    <a href="/builder/new" className="btn btn-accent">
                       New workflow
-                    </Link>
+                    </a>
                   </div>
                 </div>
               ) : (

@@ -7,7 +7,7 @@ surface-volume-monorepo/
 ├── packages/
 │   ├── backend-nestjs/     # NestJS REST API (TypeScript)
 │   ├── contract/           # API types + JSON fixtures, read by web and Kotlin
-│   ├── web/                # React web app (Vite + TypeScript + Tailwind)
+│   ├── web/                # Astro SSR web app (React islands + Tailwind)
 │   ├── frontend-kmp/       # Kotlin Multiplatform (Android, desktop, iOS)
 │   │   └── core/           # API DTOs and business rules shared by both UIs
 │   └── api-client/         # Generated Kotlin client from OpenAPI spec

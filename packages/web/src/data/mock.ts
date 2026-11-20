@@ -11,7 +11,7 @@ import type { Service, ServiceId, ServiceState, WorkflowStatus } from '@/data/ty
 
 export const NOW = new Date('2026-11-16T09:18:00+01:00')
 
-export const SERVER = 'area.epitech.eu'
+export const SERVER = 'tatooine.net'
 
 const SERVICE_COLORS: Record<string, string> = {
   gmail: '#b3261e',
@@ -56,8 +56,18 @@ export function service(id: ServiceId): Service {
   )
 }
 
+const EXTRA_WORKFLOWS: WorkflowListItem[] = []
+
+export function allWorkflows(): WorkflowListItem[] {
+  return [...WORKFLOWS, ...EXTRA_WORKFLOWS]
+}
+
+export function addWorkflow(item: WorkflowListItem): void {
+  EXTRA_WORKFLOWS.unshift(item)
+}
+
 export function workflow(id: string): WorkflowListItem | undefined {
-  return WORKFLOWS.find((item) => item.workflow.id === id)
+  return allWorkflows().find((item) => item.workflow.id === id)
 }
 
 export function statusOf(item: WorkflowListItem): WorkflowStatus {

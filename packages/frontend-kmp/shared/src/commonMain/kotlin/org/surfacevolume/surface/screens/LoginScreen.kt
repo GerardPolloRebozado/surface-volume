@@ -48,8 +48,21 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType as HttpContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.surfacevolume.surface.AuthSession
+import org.surfacevolume.surface.LocalApiConfig
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.Brand
 import org.surfacevolume.surface.components.Button
@@ -63,9 +76,6 @@ import org.surfacevolume.surface.components.TextField
 import org.surfacevolume.surface.components.TextLink
 import org.surfacevolume.surface.components.TopRule
 
-/**
- * The prototype has no auth endpoint yet, so any log in works.
- */
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
@@ -75,6 +85,7 @@ fun LoginScreen(
     onSso: () -> Unit = {},
 ) {
     val colors = LocalAppColors.current
+    val config = LocalApiConfig.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showingPassword by remember { mutableStateOf(false) }
@@ -95,9 +106,34 @@ fun LoginScreen(
         focusManager.clearFocus()
         busy = true
         scope.launch {
-            delay(700)
-            busy = false
-            onSignIn(email.trim())
+            val client = HttpClient {
+                install(ContentNegotiation)
+            }
+            try {
+                val payload = Json.encodeToString(
+                    mapOf("email" to email.trim(), "password" to password),
+                )
+                val response = client.post(config.url("/auth/sign-in")) {
+                    contentType(HttpContentType.Application.Json)
+                    setBody(payload)
+                }
+                if (response.status == HttpStatusCode.OK) {
+                    val json = Json.parseToJsonElement(response.body<String>()).jsonObject
+                    AuthSession.store(
+                        json["accessToken"]?.jsonPrimitive?.content,
+                        json["refreshToken"]?.jsonPrimitive?.content,
+                    )
+                    error = null
+                    onSignIn(email.trim())
+                } else {
+                    error = "Invalid email or password"
+                }
+            } catch (e: Exception) {
+                error = "Cannot reach the server"
+            } finally {
+                client.close()
+                busy = false
+            }
         }
     }
 
@@ -316,7 +352,7 @@ private object AuthStrings {
     const val sso = "Continue with Epitech SSO"
     const val ssoHint = "OpenID Connect · single sign-on"
     const val secure = "Sessions expire after 30 days. We never store service passwords."
-    const val server = "Connected to area.epitech.eu. Prototype screens"
+    const val server = "Connected to tatooine.net. Prototype screens"
     const val noAccount = "No account yet?"
     const val createAccount = "Create one"
     const val errorRequired = "Enter your email address and password."

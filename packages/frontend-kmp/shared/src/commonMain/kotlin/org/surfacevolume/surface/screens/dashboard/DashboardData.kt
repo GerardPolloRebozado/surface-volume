@@ -14,16 +14,16 @@ import org.surfacevolume.surface.components.AppIcon
 import org.surfacevolume.surface.components.PillTone
 
 enum class Service(val appId: String, val label: String, val icon: AppIcon, val tint: Color) {
-    Gmail("gmail", "Gmail", AppIcon.Mail, Color(0xFFB3261E)),
-    Drive("drive", "Google Drive", AppIcon.Folder, Color(0xFF17764A)),
-    Slack("slack", "Slack", AppIcon.Chat, Color(0xFF6A3D9A)),
-    Notion("notion", "Notion", AppIcon.Page, Color(0xFF3A3A40)),
-    Calendar("calendar", "Google Calendar", AppIcon.Calendar, Color(0xFF1B6FC4)),
-    GitHub("github", "GitHub", AppIcon.Code, Color(0xFF43434A)),
-    Linear("linear", "Linear", AppIcon.Layers, Color(0xFF6150A8)),
-    Stripe("stripe", "Stripe", AppIcon.Layers, Color(0xFF4A3F8F)),
-    Webhook("webhook", "Webhook", AppIcon.Code, Color(0xFF8A5A00)),
-    Discord("discord", "Discord", AppIcon.Chat, Color(0xFF4756A8)),
+    Gmail("gmail", "HoloNet Mail", AppIcon.Mail, Color(0xFFB3261E)),
+    Drive("drive", "Death Star Plans Vault", AppIcon.Folder, Color(0xFF17764A)),
+    Slack("slack", "Rebel Comms", AppIcon.Chat, Color(0xFF6A3D9A)),
+    Notion("notion", "Jedi Archives", AppIcon.Page, Color(0xFF3A3A40)),
+    Calendar("calendar", "Imperial Schedule", AppIcon.Calendar, Color(0xFF1B6FC4)),
+    GitHub("github", "Droid Forge", AppIcon.Code, Color(0xFF43434A)),
+    Linear("linear", "Order Tracker", AppIcon.Layers, Color(0xFF6150A8)),
+    Stripe("stripe", "Galactic Credits", AppIcon.Layers, Color(0xFF4A3F8F)),
+    Webhook("webhook", "Hypercomms Relay", AppIcon.Code, Color(0xFF8A5A00)),
+    Discord("discord", "Cantina Chat", AppIcon.Chat, Color(0xFF4756A8)),
     ;
 
     companion object {

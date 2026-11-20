@@ -11,7 +11,7 @@ class ContractTest {
         assertEquals(5, DemoData.runs.size)
         assertEquals(8, DemoData.connections.size)
         assertEquals(10, DemoData.catalogue.size)
-        assertEquals("Alex Martin", DemoData.account.name)
+        assertEquals("Luke Skywalker", DemoData.account.name)
         assertEquals(128, DemoData.stats.weekRuns)
     }
 

@@ -1,53 +1,63 @@
 # surface-web
 
-The web UI: React 19 + Vite + TypeScript + Tailwind 4.
+The web app: **Astro SSR** with React islands. One package, one build.
 
-## Where the data comes from
+## Why Astro
 
-The API contract is **not** defined here. It lives in `packages/contract`:
+The public landing page is plain HTML with no JS. The app pages are rendered on
+the server from the same fixtures the Kotlin client decodes, so the browser
+receives HTML containing the data; React only hydrates the interactive parts
+(filters, toggles, the node canvas).
 
 ```
-packages/contract/
-  types.ts            API shapes; the graph is imported from the backend's
-                      workflow.types.ts, so it cannot drift
-  fixtures/*.json     what the API returns today
+src/
+  layouts/      Base + App shell (sidebar, nav)
+  pages/        .astro routes — data is read here, on the server
+    index.astro           landing, zero JS
+    workflows.astro       SSR + Workflows island
+    runs.astro            SSR + Runs island
+    services.astro        SSR + Services island
+    settings.astro        SSR + Settings island
+    android.astro         SSR + Android island
+    signin.astro          SSR + Sign in island
+    builder/[...id].astro client-only React Flow canvas
+  routes/       React components used as islands
+  components/   UI primitives, icons, charts
+  data/         contract fixtures typed by packages/contract
+  styles/       design tokens ported from docs/wireframes/theme.js
 ```
 
-This app imports both. The fixtures are typed as `WorkflowListItem[]`,
-`WorkflowRun[]`, … and the graph shapes come straight from the backend's
-TypeScript. When the endpoints exist, `src/data/contract.ts` is the only file
-that changes: the fixtures become `fetch` calls with the same types.
+`@/`, `@contract` and `@backend` aliases live in `astro.config.mjs`.
 
-The Kotlin app decodes **the same JSON** with `@Serializable` DTOs
-(`packages/frontend-kmp/core`), using `ignoreUnknownKeys = false`. That decode
-runs in `:core:jvmTest`, so a fixture that gains a field one side does not know
-fails the build instead of a screen.
+## Data
 
-Nothing is hand-written twice: `src/data/mock.ts` only projects the fixtures
-into what a row paints (service names and colours, a relative timestamp).
+Shapes come from `packages/contract/types.ts`, which imports the graph from the
+backend's `workflow.types.ts`. Values come from `packages/contract/fixtures`,
+the same files `:core` decodes with `ignoreUnknownKeys = false`. When the API
+exists, the server-side imports in the `.astro` pages become `fetch` calls; the
+islands keep their props.
 
 ## Scripts
 
 | command | what it does |
 | --- | --- |
-| `pnpm dev:web` | Vite dev server |
-| `pnpm build:web` | type-check + production bundle |
-| `pnpm lint:web` | oxlint |
-| `pnpm test:core` | decode the fixtures with the Kotlin DTOs |
+| `pnpm dev:web` | Astro dev server on port 4321 |
+| `pnpm build:web` | SSR build (Node adapter) |
 
-## Layout
+To see the SSR difference:
 
-```
-src/
-  components/   shell, topbar, icons, service marks, charts
-  data/
-    contract.ts   the fixtures, typed by packages/contract
-    mock.ts       fixtures projected for the screens
-    types.ts      UI vocabulary (service state, row status)
-  lib/          formatting and theme helpers
-  routes/       Workflows, Builder, placeholders
-  styles/       design tokens ported from docs/wireframes/theme.js
+```bash
+pnpm dev:web
+curl http://localhost:4321/workflows | grep "Bounty contracts"
 ```
 
-`@contract/*` and `@backend/*` are aliases declared in `tsconfig.app.json` and
-`vite.config.ts`; they point outside this package on purpose.
+The name is in the HTML before any JavaScript runs.
+
+## Auth
+
+The sign-in island calls Astro endpoints in `src/pages/api/auth`, which forward
+to the NestJS backend at `POST /auth/sign-in` and copy the HttpOnly cookies back
+to the browser. `/auth/me` and `/auth/sign-out` are proxied the same way, and
+`src/middleware.ts` redirects to `/signin` when there is no access cookie.
+
+Set the backend URL with `BACKEND_URL` (default `http://localhost:8080`).

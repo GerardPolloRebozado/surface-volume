@@ -1,19 +1,19 @@
 [
   {
     "id": "gmail",
-    "name": "Gmail",
+    "name": "HoloNet Mail",
     "triggers": {
-      "new_email": "Mail from someone"
+      "new_email": "HoloNet message arrives"
     },
     "actions": {
-      "send_email": "Send an email"
+      "send_email": "Send a HoloNet message"
     }
   },
   {
     "id": "drive",
-    "name": "Google Drive",
+    "name": "Death Star Plans Vault",
     "triggers": {
-      "file_added": "File added to a folder"
+      "file_added": "File added to a vault"
     },
     "actions": {
       "upload_file": "Upload a file",
@@ -22,7 +22,7 @@
   },
   {
     "id": "slack",
-    "name": "Slack",
+    "name": "Rebel Comms",
     "triggers": {},
     "actions": {
       "post_message": "Post a message"
@@ -30,16 +30,16 @@
   },
   {
     "id": "notion",
-    "name": "Notion",
+    "name": "Jedi Archives",
     "triggers": {},
     "actions": {
-      "add_row": "Add a database row",
+      "add_row": "Add an archive row",
       "update_page": "Update a page"
     }
   },
   {
     "id": "calendar",
-    "name": "Google Calendar",
+    "name": "Imperial Schedule",
     "triggers": {
       "event_starting": "Event starts soon"
     },
@@ -49,7 +49,7 @@
   },
   {
     "id": "github",
-    "name": "GitHub",
+    "name": "Droid Forge",
     "triggers": {
       "issue_opened": "Issue opened"
     },
@@ -60,7 +60,7 @@
   },
   {
     "id": "linear",
-    "name": "Linear",
+    "name": "Order Tracker",
     "triggers": {},
     "actions": {
       "create_issue": "Create an issue"
@@ -68,7 +68,7 @@
   },
   {
     "id": "stripe",
-    "name": "Stripe",
+    "name": "Galactic Credits",
     "triggers": {
       "payment_failed": "Payment fails"
     },
@@ -78,9 +78,9 @@
   },
   {
     "id": "webhook",
-    "name": "Webhook",
+    "name": "Hypercomms Relay",
     "triggers": {
-      "incoming": "Incoming request"
+      "incoming": "Incoming transmission"
     },
     "actions": {
       "call": "Call a URL"
@@ -88,7 +88,7 @@
   },
   {
     "id": "discord",
-    "name": "Discord",
+    "name": "Cantina Chat",
     "triggers": {},
     "actions": {
       "post_message": "Post a message"

@@ -1,0 +1,82 @@
+---
+import Base from '../layouts/Base.astro'
+
+const steps = [
+  { n: '1', tone: 'bg-accent text-white', bg: 'rgba(27,111,196,0.18)', label: 'Node 1 · trigger', title: 'A visitor arrives', body: 'Language, time of day, dark mode — all known without asking.' },
+  { n: '2', tone: 'bg-card border-2 border-accent text-accent', bg: 'rgba(23,118,74,0.18)', label: 'Node 2 · problem', title: 'Six minutes of pretending to be a robot', body: 'Open mail, download, rename, upload, paste, message. Collapse into one node.' },
+  { n: '3', tone: 'bg-card border-2 border-accent text-accent', bg: 'rgba(138,90,0,0.18)', label: 'Node 3 · action', title: 'Connect. Draw. Point. Run.', body: 'Grant access in plain words. Drag a line. Click a value. Watch it go.' },
+  { n: '4', tone: 'bg-card border-2 border-accent text-accent', bg: 'rgba(187,29,40,0.18)', label: 'Node 4 · failure', title: 'Notion token expired', body: 'The workflow is untouched. Reconnect and retry — the steps that already succeeded are not repeated.' },
+]
+---
+<Base>
+  <header class="sticky top-0 z-40 border-b border-line bg-card/80 backdrop-blur">
+    <div class="mx-auto flex h-14 max-w-[900px] items-center justify-between px-6">
+      <span class="text-[20px] font-black tracking-tighter">area<span class="text-accent">.</span></span>
+      <div class="flex items-center gap-2">
+        <a href="/signin" class="btn btn-ghost btn-sm">Sign in</a>
+        <a href="/workflows" class="btn btn-accent btn-sm">Open the app</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="relative min-h-[70vh] overflow-hidden">
+    <svg class="absolute inset-0 h-full w-full" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g stroke-width="14" fill="none" opacity="0.9">
+        <path d="M-50 100 C 200 300, 400 -50, 600 200 S 900 400, 1250 150" stroke="#1b6fc4" />
+        <path d="M-50 300 C 250 50, 450 400, 650 150 S 950 50, 1250 350" stroke="#17764a" />
+        <path d="M-50 500 C 200 200, 500 600, 700 300 S 1000 100, 1250 550" stroke="#7b3f93" />
+        <path d="M-50 200 C 300 450, 500 50, 700 400 S 950 250, 1250 200" stroke="#8a5a00" />
+      </g>
+    </svg>
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div class="max-w-[520px] text-center">
+        <div class="card space-y-4 bg-card/95 p-8 backdrop-blur">
+          <h1 class="text-[64px] font-black leading-[0.9] tracking-tighter text-ink">Chaos in.<br />Clarity out.</h1>
+          <p class="text-[16px] text-mute">The product's own auto-arrange, demonstrated on the page itself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="mx-auto max-w-[900px] px-6 py-16">
+    <div class="relative">
+      <div class="absolute bottom-0 left-6 top-0 w-px bg-line"></div>
+      {steps.map((step) => (
+        <div class="relative pb-12 pl-16">
+          <div class={`absolute left-0 top-2 grid h-12 w-12 place-items-center rounded-full font-bold ${step.tone}`}>{step.n}</div>
+          <div class="card space-y-3 p-6" style={`background:${step.bg}`}>
+            <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-accent">{step.label}</span>
+            <h2 class="text-[28px] font-black tracking-tight">{step.title}</h2>
+            <p class="text-[14px] text-mute">{step.body}</p>
+          </div>
+        </div>
+      ))}
+      <div class="relative pl-16">
+        <div class="absolute left-0 top-2 grid h-12 w-12 place-items-center rounded-full bg-ok font-bold text-white">✓</div>
+        <div class="card space-y-4 p-6" style="background:rgba(23,118,74,0.18)">
+          <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-ok">Node 5 · done</span>
+          <h2 class="text-[28px] font-black tracking-tight">Ready to tidy up?</h2>
+          <div class="flex items-center gap-3">
+            <a href="/builder/new" class="btn btn-accent">Try the editor</a>
+            <a href="/signin" class="btn btn-quiet">Create an account</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-16 p-6">
+      <h3 class="mb-2 font-semibold">Run log</h3>
+      <div class="space-y-1 font-mono text-[12px] text-mute">
+        <div>trigger: visitor arrived</div>
+        <div>condition: over 500 → true</div>
+        <div>action: saved to Drive</div>
+        <div class="text-bad">step 3: Notion token expired</div>
+        <div class="text-ok">retry: succeeded</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="mt-12 border-t border-line">
+    <div class="mx-auto max-w-[900px] px-6 py-8 text-[12px] text-faint">Built at Epitech. No cookies. No tracking. Just a workflow.</div>
+  </footer>
+</Base>
