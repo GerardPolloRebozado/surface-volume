@@ -49,20 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType as HttpContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import org.surfacevolume.surface.AuthSession
+import org.surfacevolume.surface.AuthApi
 import org.surfacevolume.surface.LocalApiConfig
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.Brand
@@ -107,48 +94,12 @@ fun LoginScreen(
         focusManager.clearFocus()
         busy = true
         scope.launch {
-            val client = HttpClient {
-                install(ContentNegotiation)
-            }
-            try {
-                val payload = Json.encodeToString(
-                    mapOf("email" to email.trim(), "password" to password),
-                )
-                val response = client.post(config.url("/auth/sign-in")) {
-                    contentType(HttpContentType.Application.Json)
-                    setBody(payload)
-                }
-                if (response.status == HttpStatusCode.OK) {
-                    val json = Json.parseToJsonElement(response.body<String>()).jsonObject
-                    AuthSession.storeTokens(
-                        json["accessToken"]?.jsonPrimitive?.content,
-                        json["refreshToken"]?.jsonPrimitive?.content,
-                    )
-                    val access = AuthSession.accessToken
-                    if (access != null) {
-                        val me = client.get(config.url("/auth/me")) {
-                            header("Authorization", "Bearer $access")
-                        }
-                        if (me.status == HttpStatusCode.OK) {
-                            val profile = Json.parseToJsonElement(me.body<String>()).jsonObject
-                            AuthSession.storeProfile(
-                                profile["username"]?.jsonPrimitive?.content,
-                                profile["email"]?.jsonPrimitive?.content,
-                                profile["status"]?.jsonPrimitive?.content,
-                            )
-                        }
-                    }
-                    error = null
-                    onSignIn(email.trim())
-                } else {
-                    error = "Invalid email or password"
-                }
-            } catch (e: Exception) {
-                error = "Cannot reach the server"
-            } finally {
-                client.close()
-                busy = false
-            }
+            val result = AuthApi.signIn(config, email, password)
+            busy = false
+            result.fold(
+                onSuccess = { onSignIn(it) },
+                onFailure = { error = it.message ?: "Sign in failed" },
+            )
         }
     }
 
