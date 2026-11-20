@@ -1,9 +1,11 @@
 ---
 import Base from './Base.astro'
-import { ACCOUNT, SERVICES } from '../data/mock'
+import { SERVICES } from '../data/mock'
+import { initials } from '../lib/session'
 
 interface Props { title?: string; active?: string }
 const { title = 'area', active = '' } = Astro.props
+const user = Astro.locals.user
 
 const primary = [
   { to: '/', label: 'Workflows', icon: 'grid' },
@@ -57,10 +59,10 @@ const isActive = (to: string) => (to === '/' ? active === '' || active === 'work
           </div>
         </div>
         <div class="mt-auto flex items-center gap-2.5 rounded-xl p-2">
-          <span class="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">{ACCOUNT.initials}</span>
+          <span class="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">{initials(user)}</span>
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-[12.5px] font-semibold">{ACCOUNT.name}</span>
-            <span class="block truncate text-[11px] text-mute">{ACCOUNT.email}</span>
+            <span class="block truncate text-[12.5px] font-semibold">{user?.username ?? user?.email ?? 'Not signed in'}</span>
+            <span class="block truncate text-[11px] text-mute">{user?.email ?? ''}</span>
           </span>
           <a href="/api/auth/signout" class="btn btn-ghost btn-sm" title="Sign out">Sign out</a>
         </div>

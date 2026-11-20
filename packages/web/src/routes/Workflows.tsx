@@ -6,7 +6,6 @@ import { ServiceMark } from '@/components/ServiceMark'
 import { BarChart, Sparkline } from '@/components/charts'
 import type { WorkflowListItem, WorkflowRun } from '@/data/contract'
 import {
-  ACCOUNT,
   ACTIVITY,
   NOW,
   SERVICES,
@@ -17,6 +16,7 @@ import {
   statusOf,
 } from '@/data/mock'
 import type { WorkflowStatus } from '@/data/types'
+import { greeting, type AuthUser } from '@/lib/session'
 import { duration, longDate, number, runDuration, runTime } from '@/lib/format'
 
 type Filter = 'all' | 'on' | 'off' | 'attention'
@@ -268,7 +268,7 @@ function WorkflowRow({
   )
 }
 
-export function WorkflowsRoute() {
+export function WorkflowsRoute({ user, server }: { user: AuthUser; server: string }) {
   const [items, setItems] = useState<WorkflowListItem[]>(() => allWorkflows())
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
@@ -385,7 +385,7 @@ export function WorkflowsRoute() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="text-[26px] font-semibold leading-tight tracking-tight">
-                Good morning, {ACCOUNT.name.split(' ')[0]}
+                {greeting(user)}
               </h2>
               <p className="mt-1 text-[13.5px] text-mute">
                 {items.length} workflows · {STATS.weekRuns} runs this week · {STATS.failed} failed
@@ -595,7 +595,7 @@ export function WorkflowsRoute() {
           </section>
 
           <p className="mt-8 px-1 text-[11px] text-faint">
-            {connected} services connected · Connected to {ACCOUNT.server}
+            {connected} services connected · Connected to {server}
           </p>
         </div>
       </div>

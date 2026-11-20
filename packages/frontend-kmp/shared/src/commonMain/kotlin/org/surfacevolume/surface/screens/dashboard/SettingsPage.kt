@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.surfacevolume.surface.AuthSession
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.AppIcon
 import org.surfacevolume.surface.components.Avatar
@@ -51,7 +52,7 @@ internal fun SettingsPage(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(text = email, color = colors.mute, fontSize = 12.5.sp)
-                    Pill(text = "Prototype account", tone = PillTone.Accent, fontSize = 10.sp)
+                    AuthSession.status?.let { Pill(text = it, tone = PillTone.Accent, fontSize = 10.sp) }
                 }
             }
             TopRule()
@@ -96,7 +97,7 @@ internal fun SettingsPage(
         }
 
         Card(contentPadding = 16.dp, contentSpacing = 10.dp) {
-            SectionHeader(title = "Sign out", caption = "You can sign back in with any email in the prototype.")
+            SectionHeader(title = "Sign out", caption = "You can sign back in with your account.")
             Button(
                 text = "Sign out",
                 onClick = onSignOut,

@@ -1,5 +1,4 @@
 import {
-  ACCOUNT as API_ACCOUNT,
   CATALOGUE,
   CONNECTIONS,
   RUNS,
@@ -10,8 +9,6 @@ import type { WorkflowListItem } from '@/data/contract'
 import type { Service, ServiceId, ServiceState, WorkflowStatus } from '@/data/types'
 
 export const NOW = new Date('2026-11-16T09:18:00+01:00')
-
-export const SERVER = 'tatooine.net'
 
 const SERVICE_COLORS: Record<string, string> = {
   gmail: '#b3261e',
@@ -100,17 +97,6 @@ export const ACTIVITY = RUNS.map((run) => {
 export const STATS = {
   ...API_STATS,
   perDay: API_STATS.runsPerDay,
-}
-
-export const ACCOUNT = {
-  ...API_ACCOUNT,
-  initials: API_ACCOUNT.name
-    .split(' ')
-    .map((part) => part[0] ?? '')
-    .join('')
-    .slice(0, 2)
-    .toUpperCase(),
-  server: SERVER,
 }
 
 export { WORKFLOWS }

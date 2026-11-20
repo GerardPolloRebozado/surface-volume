@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -119,10 +120,24 @@ fun LoginScreen(
                 }
                 if (response.status == HttpStatusCode.OK) {
                     val json = Json.parseToJsonElement(response.body<String>()).jsonObject
-                    AuthSession.store(
+                    AuthSession.storeTokens(
                         json["accessToken"]?.jsonPrimitive?.content,
                         json["refreshToken"]?.jsonPrimitive?.content,
                     )
+                    val access = AuthSession.accessToken
+                    if (access != null) {
+                        val me = client.get(config.url("/auth/me")) {
+                            header("Authorization", "Bearer $access")
+                        }
+                        if (me.status == HttpStatusCode.OK) {
+                            val profile = Json.parseToJsonElement(me.body<String>()).jsonObject
+                            AuthSession.storeProfile(
+                                profile["username"]?.jsonPrimitive?.content,
+                                profile["email"]?.jsonPrimitive?.content,
+                                profile["status"]?.jsonPrimitive?.content,
+                            )
+                        }
+                    }
                     error = null
                     onSignIn(email.trim())
                 } else {
@@ -301,7 +316,7 @@ fun LoginScreen(
                         lineHeight = 17.sp,
                     )
                     HintText(
-                        text = AuthStrings.server,
+                        text = "Connected to ${config.url("")}",
                         fontSize = 10.5.sp,
                         lineHeight = 17.sp,
                     )
@@ -352,7 +367,6 @@ private object AuthStrings {
     const val sso = "Continue with Epitech SSO"
     const val ssoHint = "OpenID Connect · single sign-on"
     const val secure = "Sessions expire after 30 days. We never store service passwords."
-    const val server = "Connected to tatooine.net. Prototype screens"
     const val noAccount = "No account yet?"
     const val createAccount = "Create one"
     const val errorRequired = "Enter your email address and password."

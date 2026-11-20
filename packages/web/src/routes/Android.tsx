@@ -2,7 +2,7 @@ import { Topbar } from '@/components/Topbar'
 import { Icon } from '@/components/Icon'
 import { Page } from '@/components/Page'
 
-export function AndroidRoute() {
+export function AndroidRoute({ code }: { code: string }) {
   return (
     <div className="flex h-full flex-col">
       <Topbar title="Android client" subtitle="Same workspace, smaller screen" />
@@ -25,7 +25,7 @@ export function AndroidRoute() {
 
           <div className="card p-4">
             <div className="text-[12px] font-medium text-mute">Pairing code</div>
-            <div className="mt-1 font-mono text-[22px] font-semibold tracking-widest">A7F-9K2-QP4</div>
+            <div className="mt-1 font-mono text-[22px] font-semibold tracking-widest">{code}</div>
             <div className="mt-2 text-[11.5px] text-mute">
               Expires in 10 minutes. Enter it on the phone under Settings → Pair device.
             </div>

@@ -80,6 +80,10 @@ export function SigninRoute() {
               <Icon name="logout" size={15} />
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
+            <div className="mt-4 text-center text-[12px] text-mute">
+              No account yet?{' '}
+              <a href="/register" className="text-accent hover:underline">Create one</a>
+            </div>
           </form>
         </Page>
       </div>
