@@ -21,6 +21,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +85,20 @@ internal fun BuilderScreen(
     }
     val edges = remember { mutableStateListOf<BuilderEdge>() }
     var linkingFrom by remember { mutableStateOf<Pair<String, String?>?>(null) }
+    var running by remember { mutableStateOf(false) }
+    var runMessage by remember { mutableStateOf<String?>(null) }
+    val runScope = rememberCoroutineScope()
+
+    fun runTest() {
+        if (running) return
+        running = true
+        runMessage = if (edges.isEmpty()) "No steps connected yet" else "Starting test run…"
+        runScope.launch {
+            delay(700)
+            if (edges.isNotEmpty()) runMessage = "Test run succeeded"
+            running = false
+        }
+    }
 
     fun addNode(kind: NodeKind) {
         val last = nodes.lastOrNull()
@@ -129,6 +146,13 @@ internal fun BuilderScreen(
             Button(text = "Back", variant = ButtonVariant.Quiet, onClick = onBack, small = true)
             TextField(value = name, onValueChange = { name = it }, label = "Workflow name", modifier = Modifier.weight(1f))
             Button(
+                text = if (running) "Running…" else "Play",
+                variant = ButtonVariant.Accent,
+                small = true,
+                enabled = !running,
+                onClick = { runTest() },
+            )
+            Button(
                 text = "Save",
                 variant = ButtonVariant.Accent,
                 small = true,
@@ -144,6 +168,10 @@ internal fun BuilderScreen(
                     )
                 },
             )
+        }
+
+        runMessage?.let { msg ->
+            Text(text = msg, color = colors.mute, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp))
         }
 
         Row(modifier = Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

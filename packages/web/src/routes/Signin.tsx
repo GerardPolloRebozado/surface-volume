@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { Topbar } from '@/components/Topbar'
 import { Icon } from '@/components/Icon'
 import { Page } from '@/components/Page'
 
@@ -36,57 +35,59 @@ export function SigninRoute() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <Topbar title="Sign in" subtitle="Workspace access" />
-
-      <div className="scroll flex-1 overflow-auto">
-        <Page maxWidth={420}>
-          <form className="card p-6" onSubmit={submit}>
-            <div className="text-[15px] font-semibold">Welcome back</div>
-            <div className="mt-1 text-[12.5px] text-mute">
-              Sign in with your Surface Volume account.
-            </div>
-
-            <label className="mt-4 block text-[12px] font-medium text-mute" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input mt-1.5 w-full"
-              placeholder="you@company.com"
-            />
-
-            <label className="mt-3 block text-[12px] font-medium text-mute" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input mt-1.5 w-full"
-            />
-
-            {error ? <div className="mt-3 text-[12px] text-bad">{error}</div> : null}
-
-            <button type="submit" className="btn btn-accent mt-4 w-full" disabled={busy}>
-              <Icon name="logout" size={15} />
-              {busy ? 'Signing in…' : 'Sign in'}
-            </button>
-            <div className="mt-4 text-center text-[12px] text-mute">
-              No account yet?{' '}
-              <a href="/register" className="text-accent hover:underline">Create one</a>
-            </div>
-          </form>
-        </Page>
+    <div className="min-h-screen bg-win px-4 py-12 text-ink">
+      <div className="mb-8 text-center text-[20px] font-black tracking-tighter">
+        area<span className="text-accent">.</span>
       </div>
+      <Page maxWidth={420}>
+        <form className="card p-6" onSubmit={submit}>
+          <div className="text-[15px] font-semibold">Welcome back</div>
+          <div className="mt-1 text-[12.5px] text-mute">
+            Sign in with your Surface Volume account.
+          </div>
+
+          <label className="mt-4 block text-[12px] font-medium text-mute" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input mt-1.5 w-full"
+            placeholder="you@company.com"
+          />
+
+          <label className="mt-3 block text-[12px] font-medium text-mute" htmlFor="password">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="input mt-1.5 w-full"
+          />
+
+          {error ? <div className="mt-3 text-[12px] text-bad">{error}</div> : null}
+
+          <button type="submit" className="btn btn-accent mt-4 w-full" disabled={busy}>
+            <Icon name="logout" size={15} />
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+          <div className="mt-4 text-center text-[12px] text-mute">
+            No account yet?{' '}
+            <a href="/register" className="text-accent hover:underline">Create one</a>
+          </div>
+          <div className="mt-4 text-center">
+            <a href="/" className="text-[12px] text-mute hover:text-ink">Back to home</a>
+          </div>
+        </form>
+      </Page>
     </div>
   )
 }

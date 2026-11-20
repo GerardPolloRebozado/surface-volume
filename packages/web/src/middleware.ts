@@ -11,6 +11,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     pathname.startsWith('/_astro') ||
     pathname.startsWith('/favicon')
 
+  if (pathname === '/' && context.cookies.get(ACCESS_COOKIE)?.value) {
+    return context.redirect('/workflows')
+  }
+
   if (isPublic) return next()
 
   const token = context.cookies.get(ACCESS_COOKIE)?.value

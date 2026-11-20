@@ -38,6 +38,7 @@ type Data = {
   op?: Op
   right?: string
   items?: string
+  run?: 'ok' | 'bad' | 'run'
   onSvc?: (v: string) => void
   onKey?: (v: string) => void
   onField?: (f: string, v: string) => void
@@ -73,6 +74,7 @@ function TriggerCard({ data }: NodeProps<Node<Data>>) {
       <div className="mb-2 flex items-center gap-2">
         <ServiceMark id={data.svc} size={22} />
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent">Trigger</span>
+        {data.run ? <span className={`h-2.5 w-2.5 rounded-full ${data.run === 'ok' ? 'bg-ok' : data.run === 'bad' ? 'bg-bad' : 'bg-warn'}`} /> : null}
         <Handle type="source" position={Position.Right} id="out" className="!h-3 !w-3 !border-2 !border-card !bg-accent" />
       </div>
       <select className="input w-full" value={data.svc} onChange={(e) => data.onSvc?.(String(e.target.value))}>
@@ -93,6 +95,7 @@ function ActionCard({ data }: NodeProps<Node<Data>>) {
       <div className="mb-2 flex items-center gap-2">
         <ServiceMark id={data.svc} size={22} />
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-mute">Action</span>
+        {data.run ? <span className={`h-2.5 w-2.5 rounded-full ${data.run === 'ok' ? 'bg-ok' : data.run === 'bad' ? 'bg-bad' : 'bg-warn'}`} /> : null}
         <button type="button" className="btn btn-ghost btn-icon btn-sm ml-auto" onClick={() => data.onRemove?.()} aria-label="Remove step">
           <Icon name="x" size={13} />
         </button>
@@ -115,6 +118,7 @@ function ConditionCard({ data }: NodeProps<Node<Data>>) {
       <div className="mb-2 flex items-center gap-2">
         <span className="grid h-6 w-6 place-items-center rounded-lg bg-warn-soft text-warn"><Icon name="branch" size={13} /></span>
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-warn">If</span>
+        {data.run ? <span className={`h-2.5 w-2.5 rounded-full ${data.run === 'ok' ? 'bg-ok' : data.run === 'bad' ? 'bg-bad' : 'bg-warn'}`} /> : null}
         <button type="button" className="btn btn-ghost btn-icon btn-sm ml-auto" onClick={() => data.onRemove?.()} aria-label="Remove step">
           <Icon name="x" size={13} />
         </button>
@@ -141,6 +145,7 @@ function LoopCard({ data }: NodeProps<Node<Data>>) {
       <div className="mb-2 flex items-center gap-2">
         <span className="grid h-6 w-6 place-items-center rounded-lg bg-ok-soft text-ok"><Icon name="refresh" size={13} /></span>
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-ok">Loop</span>
+        {data.run ? <span className={`h-2.5 w-2.5 rounded-full ${data.run === 'ok' ? 'bg-ok' : data.run === 'bad' ? 'bg-bad' : 'bg-warn'}`} /> : null}
         <button type="button" className="btn btn-ghost btn-icon btn-sm ml-auto" onClick={() => data.onRemove?.()} aria-label="Remove step">
           <Icon name="x" size={13} />
         </button>
@@ -156,6 +161,9 @@ const nodeTypes = { trigger: TriggerCard, action: ActionCard, condition: Conditi
 export function BuilderRoute({ workflowId }: { workflowId?: string }) {
   const [name, setName] = useState(workflowId === 'new' ? 'New workflow' : 'Workflow')
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [runStatus, setRunStatus] = useState<Record<string, 'ok' | 'bad' | 'run'>>({})
+  const [runMessage, setRunMessage] = useState<string | null>(null)
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<Data>>([
     { id: 'trigger', type: 'trigger', position: { x: 80, y: 120 }, data: { svc: SERVICES[0]?.id ?? 'webhook', key: '', onSvc: () => {}, onKey: () => {} } },
@@ -179,8 +187,9 @@ export function BuilderRoute({ workflowId }: { workflowId?: string }) {
       onKey: (v: string) => wire(n.id, 'key', v),
       onField: (f: string, v: string) => wire(n.id, f, v),
       onRemove: () => removeNode(n.id),
+      run: runStatus[n.id],
     },
-  })), [nodes, wire, removeNode])
+  })), [nodes, wire, removeNode, runStatus])
 
   const onConnect = useCallback((c: Connection) => setEdges((eds) => addEdge(c, eds)), [setEdges])
 
@@ -194,6 +203,48 @@ export function BuilderRoute({ workflowId }: { workflowId?: string }) {
         : { svc: SERVICES[0]?.id ?? 'webhook', key: '' }
     setNodes((nds) => [...nds, { id, type, position: { x: (last?.position.x ?? 80) + 300 + offset, y: (last?.position.y ?? 120) }, data }])
     setPaletteOpen(false)
+  }
+
+  function runTest() {
+    if (running) return
+    setRunning(true)
+    setRunStatus({})
+    setRunMessage('Starting test run…')
+
+    const order: string[] = []
+    const seen = new Set<string>()
+    let current = 'trigger'
+    while (current && !seen.has(current)) {
+      seen.add(current)
+      order.push(current)
+      const outgoing = edges.filter((e) => e.source === current)
+      const next = outgoing.find((e) => e.sourceHandle === 'yes') ?? outgoing[0]
+      current = next?.to ?? ''
+    }
+
+    if (order.length <= 1) {
+      setRunStatus({ trigger: 'bad' })
+      setRunMessage('No steps connected yet')
+      setRunning(false)
+      return
+    }
+
+    let i = 0
+    const step = () => {
+      if (i >= order.length) {
+        setRunMessage('Test run succeeded')
+        setRunning(false)
+        return
+      }
+      const id = order[i]
+      setRunStatus((prev) => ({ ...prev, [id]: 'run' }))
+      window.setTimeout(() => {
+        setRunStatus((prev) => ({ ...prev, [id]: 'ok' }))
+        i += 1
+        step()
+      }, 350)
+    }
+    window.setTimeout(step, 200)
   }
 
   function save() {
@@ -264,6 +315,10 @@ export function BuilderRoute({ workflowId }: { workflowId?: string }) {
         subtitle="Drag nodes. Pull a port to another node to link them."
       >
         <a href="/" className="btn btn-quiet btn-sm">Cancel</a>
+        <button type="button" className="btn btn-sm" onClick={runTest} disabled={running}>
+          <Icon name="play" size={13} />
+          {running ? 'Running…' : 'Play'}
+        </button>
         <button type="button" className="btn btn-sm" onClick={() => setPaletteOpen((v) => !v)}>Add step</button>
         <button type="button" className="btn btn-accent btn-sm" onClick={save}>Save</button>
       </Topbar>
@@ -309,6 +364,12 @@ export function BuilderRoute({ workflowId }: { workflowId?: string }) {
             <div className="absolute bottom-3 left-3 z-20 rounded-xl border border-line bg-card px-2.5 py-1.5 text-[10.5px] text-mute shadow-card">
               Drag from a node's right port to another node's left port to link.
             </div>
+
+            {runMessage ? (
+              <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-xl border border-line bg-card px-4 py-2 text-[12px] font-medium shadow-pop">
+                {runMessage}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
