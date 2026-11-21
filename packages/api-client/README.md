@@ -46,12 +46,26 @@ All URIs are relative to *http://localhost*
 | Class | Method | HTTP request | Description |
 | ------------ | ------------- | ------------- | ------------- |
 | *AppApi* | [**appControllerGetHello**](docs/AppApi.md#appcontrollergethello) | **GET** / |  |
+| *AuthApi* | [**authControllerGetMe**](docs/AuthApi.md#authcontrollergetme) | **GET** /auth/me | Get profile of the currently authenticated user |
+| *AuthApi* | [**authControllerRefresh**](docs/AuthApi.md#authcontrollerrefresh) | **POST** /auth/refresh | Refresh JWT access token using body or cookie |
+| *AuthApi* | [**authControllerSignIn**](docs/AuthApi.md#authcontrollersignin) | **POST** /auth/sign-in | Authenticate user with email and password |
+| *AuthApi* | [**authControllerSignOut**](docs/AuthApi.md#authcontrollersignout) | **POST** /auth/sign-out | Sign out and invalidate all tokens for current user |
+| *AuthApi* | [**authControllerSignUp**](docs/AuthApi.md#authcontrollersignup) | **POST** /auth/sign-up | Register a new user account |
+| *AuthApi* | [**emailVerificationControllerResend**](docs/AuthApi.md#emailverificationcontrollerresend) | **POST** /auth/email/verification | Resend verification email to current user |
+| *AuthApi* | [**emailVerificationControllerVerify**](docs/AuthApi.md#emailverificationcontrollerverify) | **POST** /auth/email/verify | Verify email address with token |
 | *PingApi* | [**pingControllerPing**](docs/PingApi.md#pingcontrollerping) | **GET** /ping | Health check endpoint |
 
 
 <a id="documentation-for-models"></a>
 ## Documentation for Models
 
+ - [surfacevolume.api.models.RefreshTokenDto](docs/RefreshTokenDto.md)
+ - [surfacevolume.api.models.SignInDto](docs/SignInDto.md)
+ - [surfacevolume.api.models.SignInResponseDto](docs/SignInResponseDto.md)
+ - [surfacevolume.api.models.SignUpDto](docs/SignUpDto.md)
+ - [surfacevolume.api.models.UserResponseDto](docs/UserResponseDto.md)
+ - [surfacevolume.api.models.VerifyEmailDto](docs/VerifyEmailDto.md)
+ - [surfacevolume.api.models.VerifyEmailResponseDto](docs/VerifyEmailResponseDto.md)
 
 
 <a id="documentation-for-authorization"></a>

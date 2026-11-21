@@ -9,7 +9,7 @@ All URIs are relative to *http://localhost*
 
 <a id="appControllerGetHello"></a>
 # **appControllerGetHello**
-> appControllerGetHello()
+> kotlin.String appControllerGetHello()
 
 
 
@@ -21,7 +21,8 @@ All URIs are relative to *http://localhost*
 
 val apiInstance = AppApi()
 try {
-    apiInstance.appControllerGetHello()
+    val result : kotlin.String = apiInstance.appControllerGetHello()
+    println(result)
 } catch (e: ClientException) {
     println("4xx response calling AppApi#appControllerGetHello")
     e.printStackTrace()
@@ -36,7 +37,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-null (empty response body)
+**kotlin.String**
 
 ### Authorization
 
@@ -45,5 +46,5 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
