@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@import './styles/tokens.css' layer(components);
+
+@theme inline {
+  --color-win: var(--win);
+  --color-side: var(--side);
+  --color-card: var(--card);
+  --color-sunken: var(--sunken);
+
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-faint: var(--faint);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-yes: var(--yes);
+  --color-no: var(--no);
+
+  --color-cv: var(--cv);
+
+  --font-sans: 'Inter', Cantarell, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-xl2: 14px;
+
+  --shadow-card: 0 1px 2px rgba(20, 18, 26, 0.06), 0 4px 14px rgba(20, 18, 26, 0.04);
+  --shadow-pop: 0 8px 30px rgba(20, 18, 26, 0.14);
+}

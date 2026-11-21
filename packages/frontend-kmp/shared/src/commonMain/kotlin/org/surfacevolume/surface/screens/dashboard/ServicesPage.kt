@@ -91,7 +91,7 @@ internal fun ServicesPage() {
         Banner(
             tone = BannerTone.Accent,
             title = "Connect another service",
-            body = "Gmail, Drive, Slack, Notion, Calendar and GitHub are linked for the prototype. More services arrive in the future.",
+            body = "HoloNet Mail, the Death Star Plans Vault, Rebel Comms, the Jedi Archives, Imperial Schedule and the Droid Forge are linked for the prototype. More services arrive in the future.",
             actions = {
                 Button(text = "Browse services", onClick = {}, small = true)
             },

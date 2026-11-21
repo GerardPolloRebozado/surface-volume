@@ -1,3 +1,5 @@
+import java.util.Properties
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -30,8 +32,13 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        // Android has no .env, so the URL is set in BuildConfig from local.properties or env at build time
+        val localProps = Properties().apply {
+            rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+        }
         val apiBaseUrl = (project.findProperty("surface.api.baseUrl") as String?)
             ?: System.getenv("SURFACE_VOLUME_API_BASE_URL")
+            ?: localProps.getProperty("SURFACE_VOLUME_API_BASE_URL")
             ?: "http://10.0.2.2:8080"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }

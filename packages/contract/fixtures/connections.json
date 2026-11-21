@@ -1,0 +1,58 @@
+[
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000201",
+    "appId": "gmail",
+    "appName": "HoloNet Mail",
+    "account": "luke.skywalker@gmail.com",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000202",
+    "appId": "drive",
+    "appName": "Death Star Plans Vault",
+    "account": "luke.skywalker@gmail.com",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000203",
+    "appId": "slack",
+    "appName": "Rebel Comms",
+    "account": "rebel-alliance.comms",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000204",
+    "appId": "notion",
+    "appName": "Jedi Archives",
+    "account": "luke.skywalker@tatooine.net",
+    "status": "expired"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000205",
+    "appId": "calendar",
+    "appName": "Imperial Schedule",
+    "account": "luke.skywalker@tatooine.net",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000206",
+    "appId": "github",
+    "appName": "Droid Forge",
+    "account": "@lskywalker",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000207",
+    "appId": "linear",
+    "appName": "Order Tracker",
+    "account": "@luke",
+    "status": "active"
+  },
+  {
+    "id": "0199a0c0-0000-7000-8000-000000000208",
+    "appId": "webhook",
+    "appName": "Hypercomms Relay",
+    "account": "tatooine.net/hooks/9f2c",
+    "status": "active"
+  }
+]

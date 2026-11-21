@@ -6,7 +6,10 @@ Automation platform: NestJS backend + Kotlin Multiplatform frontend, with a gene
 surface-volume-monorepo/
 ├── packages/
 │   ├── backend-nestjs/     # NestJS REST API (TypeScript)
-│   ├── frontend-kmp/       # Kotlin Multiplatform (Android + web)
+│   ├── contract/           # API types + JSON fixtures, read by web and Kotlin
+│   ├── web/                # Astro SSR web app (React islands + Tailwind)
+│   ├── frontend-kmp/       # Kotlin Multiplatform (Android, desktop, iOS)
+│   │   └── core/           # API DTOs and business rules shared by both UIs
 │   └── api-client/         # Generated Kotlin client from OpenAPI spec
 ├── scripts/
 │   └── generate-api-client.sh   # OpenAPI Generator → Kotlin client
@@ -25,7 +28,7 @@ surface-volume-monorepo/
 | Layer | Choice | ADR |
 |---|---|---|
 | Backend | NestJS (TypeScript, Node.js) | `docs/adr/0001-nestjs-backend.md` |
-| Frontend | Kotlin Multiplatform + Compose (Android + web) | `docs/adr/0002-kotlin-multiplatform-frontend.md` |
+| Frontend | React for web; Kotlin Multiplatform + Compose for Android/desktop/iOS | `docs/adr/0002-kotlin-multiplatform-frontend.md` |
 | Database | PostgreSQL (JSONB for workflow configs) | `docs/adr/0003-postgresql-database.md` |
 | Contingency | MongoDB — deferred with explicit triggers | `docs/adr/0004-mongodb-workflow-json-future.md` |
 | Hosting | Azure, managed with Terraform | `docs/adr/0005-azure-terraform.md` |
@@ -114,7 +117,17 @@ The backend serves:
 - Swagger UI on `http://localhost:8080/api`
 - OpenAPI JSON on `http://localhost:8080/api-json` (written to `openapi.json` on startup)
 
-### 3. Frontend (KMP)
+### 3. Frontend
+
+Web (React):
+
+```bash
+# From the repo root
+pnpm dev:web      # dev server
+pnpm build:web    # type-check + bundle
+```
+
+Mobile/desktop (Kotlin Multiplatform):
 
 ```bash
 cd packages/frontend-kmp
@@ -122,12 +135,26 @@ cd packages/frontend-kmp
 # Run shared module tests (JVM only, no device needed)
 ./gradlew :shared:test
 
-# Install on Android emulator/device
-./gradlew :app:installDebug
+# Decode the API fixtures into the shared DTOs
+./gradlew :core:jvmTest
 
-# Run web/Wasm dev server
-./gradlew :shared:wasmJsBrowserDevelopmentRun
+# Install on Android emulator/device
+./gradlew :androidApp:installDebug
 ```
+
+Both UIs read the same API shape from `packages/contract` (types derived from the
+backend's graph) and the same demo JSON from `packages/contract/fixtures`.
+
+---
+
+## API contract for the current mocks
+
+Until the endpoints exist, `packages/contract` is the API. `types.ts` derives the
+workflow graph from `packages/backend-nestjs/src/workflow/workflow.types.ts`, and
+`fixtures/*.json` is read by **both** clients: the React app imports it directly,
+`:core` decodes it into `@Serializable` DTOs with `ignoreUnknownKeys = false`.
+That decode runs in `:core:jvmTest`, so a fixture and a DTO cannot drift apart
+without failing the build.
 
 ---
 
@@ -193,8 +220,10 @@ The generated client is **not** meant to be hand-edited — it is always regener
 | `pnpm run start:dev` | `packages/backend-nestjs` | Start NestJS in watch mode |
 | `pnpm run build` | `packages/backend-nestjs` | Build NestJS for production |
 | `./gradlew :shared:test` | `packages/frontend-kmp` | Run shared module tests |
-| `./gradlew :app:installDebug` | `packages/frontend-kmp` | Install Android app on device |
-| `./gradlew :shared:wasmJsBrowserDevelopmentRun` | `packages/frontend-kmp` | Start web dev server |
+| `./gradlew :core:jvmTest` | `packages/frontend-kmp` | Decode the contract fixtures into the Kotlin DTOs |
+| `./gradlew :androidApp:installDebug` | `packages/frontend-kmp` | Install Android app on device |
+| `pnpm dev:web` | root | Start the React dev server |
+| `pnpm build:web` | root | Type-check and bundle the React app |
 | `bash scripts/generate-api-client.sh` | root | Generate Kotlin client from OpenAPI |
 
 ---

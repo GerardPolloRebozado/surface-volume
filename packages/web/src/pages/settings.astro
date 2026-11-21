@@ -1,0 +1,9 @@
+---
+import App from '../layouts/App.astro'
+import { SettingsRoute } from '../routes/Settings'
+
+const user = Astro.locals.user!
+---
+<App title="Settings · area" active="settings">
+  <SettingsRoute client:load user={user} />
+</App>

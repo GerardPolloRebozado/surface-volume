@@ -1,0 +1,479 @@
+[
+  {
+    "workflow": {
+      "id": "0199a0c0-0000-7000-8000-000000000101",
+      "userId": "0199a0c0-0000-7000-8000-000000000001",
+      "name": "Bounty contracts to the ledger",
+      "description": "File bounty contracts, log them in the Archives, and ask before paying the big ones.",
+      "status": "error",
+      "statusReason": "Jedi Archives connection expired",
+      "version": 3,
+      "trigger": {
+        "id": "trigger",
+        "appId": "gmail",
+        "triggerKey": "new_email",
+        "credentialId": "0199a0c0-0000-7000-8000-000000000201",
+        "inputs": {
+          "from": "billing@acme.com",
+          "label": "suppliers"
+        }
+      },
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "action",
+          "name": "Save the attachment",
+          "appId": "drive",
+          "actionKey": "upload_file",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000202",
+          "inputs": {
+            "file": "{{ trigger.attachment }}",
+            "folder": "/Invoices/2026"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "action",
+          "name": "Add an expense row",
+          "appId": "notion",
+          "actionKey": "add_row",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000204",
+          "inputs": {
+            "database": "finance",
+            "title": "{{ trigger.subject }}",
+            "amount": "418.00",
+            "link": "{{ node_1.url }}"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "action",
+          "name": "Ask for approval",
+          "appId": "slack",
+          "actionKey": "post_message",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000203",
+          "inputs": {
+            "channel": "#finance",
+            "text": "Invoice {{ trigger.subject }} is logged. Approve payment?"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_1",
+          "from": "trigger",
+          "to": "node_1"
+        },
+        {
+          "id": "link_2",
+          "from": "node_1",
+          "to": "node_2"
+        },
+        {
+          "id": "link_3",
+          "from": "node_2",
+          "to": "node_3"
+        }
+      ],
+      "createdAt": "2026-09-02T10:12:00+02:00",
+      "updatedAt": "2026-11-16T09:14:00+01:00",
+      "lastRunAt": "2026-11-16T09:14:00+01:00"
+    },
+    "services": [
+      "gmail",
+      "drive",
+      "notion",
+      "slack"
+    ],
+    "lastRun": {
+      "id": "0199a0c0-0000-7000-8000-000000000301",
+      "workflowId": "0199a0c0-0000-7000-8000-000000000101",
+      "versionId": "0199a0c0-0000-7000-8000-000000000401",
+      "mode": "live",
+      "status": "succeeded",
+      "queuedAt": "2026-11-16T09:13:57+01:00",
+      "startedAt": "2026-11-16T09:13:58+01:00",
+      "finishedAt": "2026-11-16T09:14:00+01:00",
+      "errorNodeId": null,
+      "errorKind": null,
+      "errorMessage": null
+    },
+    "runsLast7Days": [
+      5,
+      4,
+      5,
+      5,
+      3,
+      5,
+      5
+    ]
+  },
+  {
+    "workflow": {
+      "id": "0199a0c0-0000-7000-8000-000000000102",
+      "userId": "0199a0c0-0000-7000-8000-000000000001",
+      "name": "Rebel briefing reminder",
+      "description": "Post the agenda ten minutes before the rebel briefing.",
+      "status": "on",
+      "statusReason": null,
+      "version": 2,
+      "trigger": {
+        "id": "trigger",
+        "appId": "calendar",
+        "triggerKey": "event_starting",
+        "credentialId": "0199a0c0-0000-7000-8000-000000000205",
+        "inputs": {
+          "calendar": "Team",
+          "minutesBefore": 10
+        }
+      },
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "action",
+          "name": "Post the agenda",
+          "appId": "slack",
+          "actionKey": "post_message",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000203",
+          "inputs": {
+            "channel": "#team",
+            "text": "Standup in 10 minutes"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_1",
+          "from": "trigger",
+          "to": "node_1"
+        }
+      ],
+      "createdAt": "2026-08-14T09:00:00+02:00",
+      "updatedAt": "2026-11-16T08:10:00+01:00",
+      "lastRunAt": "2026-11-16T08:10:00+01:00"
+    },
+    "services": [
+      "calendar",
+      "slack"
+    ],
+    "lastRun": {
+      "id": "0199a0c0-0000-7000-8000-000000000303",
+      "workflowId": "0199a0c0-0000-7000-8000-000000000102",
+      "versionId": "0199a0c0-0000-7000-8000-000000000402",
+      "mode": "live",
+      "status": "succeeded",
+      "queuedAt": "2026-11-16T08:09:59+01:00",
+      "startedAt": "2026-11-16T08:09:59+01:00",
+      "finishedAt": "2026-11-16T08:10:00+01:00",
+      "errorNodeId": null,
+      "errorKind": null,
+      "errorMessage": null
+    },
+    "runsLast7Days": [
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5
+    ]
+  },
+  {
+    "workflow": {
+      "id": "0199a0c0-0000-7000-8000-000000000103",
+      "userId": "0199a0c0-0000-7000-8000-000000000001",
+      "name": "Archive signed treaties",
+      "description": "Keep the Senate in the loop when a treaty lands in the Vault.",
+      "status": "off",
+      "statusReason": null,
+      "version": 4,
+      "trigger": {
+        "id": "trigger",
+        "appId": "drive",
+        "triggerKey": "file_added",
+        "credentialId": "0199a0c0-0000-7000-8000-000000000202",
+        "inputs": {
+          "folder": "/Contracts"
+        }
+      },
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "branch",
+          "name": "Is it signed?",
+          "paths": [
+            {
+              "name": "signed",
+              "conditions": [
+                [
+                  {
+                    "left": "trigger.name",
+                    "op": "contains",
+                    "right": "signed"
+                  }
+                ]
+              ]
+            },
+            {
+              "name": "unsigned",
+              "conditions": []
+            }
+          ]
+        },
+        {
+          "id": "node_2",
+          "type": "action",
+          "name": "Mark the legal page",
+          "appId": "notion",
+          "actionKey": "update_page",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000204",
+          "inputs": {
+            "page": "Legal",
+            "status": "Signed"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "action",
+          "name": "Mail legal",
+          "appId": "gmail",
+          "actionKey": "send_email",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000201",
+          "inputs": {
+            "to": "legal@epitech.eu",
+            "subject": "Contract needs a signature"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_1",
+          "from": "trigger",
+          "to": "node_1"
+        },
+        {
+          "id": "link_2",
+          "from": "node_1",
+          "fromPath": "signed",
+          "to": "node_2"
+        },
+        {
+          "id": "link_3",
+          "from": "node_1",
+          "fromPath": "unsigned",
+          "to": "node_3"
+        }
+      ],
+      "createdAt": "2026-07-21T15:30:00+02:00",
+      "updatedAt": "2026-11-15T16:40:00+01:00",
+      "lastRunAt": "2026-11-15T16:40:00+01:00"
+    },
+    "services": [
+      "drive",
+      "notion",
+      "gmail"
+    ],
+    "lastRun": {
+      "id": "0199a0c0-0000-7000-8000-000000000305",
+      "workflowId": "0199a0c0-0000-7000-8000-000000000103",
+      "versionId": "0199a0c0-0000-7000-8000-000000000403",
+      "mode": "live",
+      "status": "failed",
+      "queuedAt": "2026-11-15T16:39:58+01:00",
+      "startedAt": "2026-11-15T16:39:59+01:00",
+      "finishedAt": "2026-11-15T16:40:00+01:00",
+      "errorNodeId": "node_2",
+      "errorKind": "auth_expired",
+      "errorMessage": "Notion connection expired"
+    },
+    "runsLast7Days": [
+      5,
+      5,
+      1,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  {
+    "workflow": {
+      "id": "0199a0c0-0000-7000-8000-000000000104",
+      "userId": "0199a0c0-0000-7000-8000-000000000001",
+      "name": "Supply requests to Order Tracker",
+      "description": "Turn supply requests into mission issues, and tell the squad in Rebel Comms.",
+      "status": "on",
+      "statusReason": null,
+      "version": 5,
+      "trigger": {
+        "id": "trigger",
+        "appId": "gmail",
+        "triggerKey": "new_email",
+        "credentialId": "0199a0c0-0000-7000-8000-000000000201",
+        "inputs": {
+          "from": "sales@epitech.eu"
+        }
+      },
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "filter",
+          "name": "Is it a quote request?",
+          "conditions": [
+            [
+              {
+                "left": "trigger.subject",
+                "op": "contains",
+                "right": "quote"
+              }
+            ]
+          ]
+        },
+        {
+          "id": "node_2",
+          "type": "action",
+          "name": "Open a Linear issue",
+          "appId": "linear",
+          "actionKey": "create_issue",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000207",
+          "inputs": {
+            "team": "Product",
+            "title": "{{ trigger.subject }}"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "action",
+          "name": "Tell the team",
+          "appId": "slack",
+          "actionKey": "post_message",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000203",
+          "inputs": {
+            "channel": "#product",
+            "text": "New quote request: {{ trigger.subject }}"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_1",
+          "from": "trigger",
+          "to": "node_1"
+        },
+        {
+          "id": "link_2",
+          "from": "node_1",
+          "to": "node_2"
+        },
+        {
+          "id": "link_3",
+          "from": "node_2",
+          "to": "node_3"
+        }
+      ],
+      "createdAt": "2026-10-03T11:45:00+02:00",
+      "updatedAt": "2026-11-16T08:55:00+01:00",
+      "lastRunAt": "2026-11-16T08:55:00+01:00"
+    },
+    "services": [
+      "gmail",
+      "linear",
+      "slack"
+    ],
+    "lastRun": {
+      "id": "0199a0c0-0000-7000-8000-000000000302",
+      "workflowId": "0199a0c0-0000-7000-8000-000000000104",
+      "versionId": "0199a0c0-0000-7000-8000-000000000404",
+      "mode": "live",
+      "status": "succeeded",
+      "queuedAt": "2026-11-16T08:54:56+01:00",
+      "startedAt": "2026-11-16T08:54:57+01:00",
+      "finishedAt": "2026-11-16T08:55:00+01:00",
+      "errorNodeId": null,
+      "errorKind": null,
+      "errorMessage": null
+    },
+    "runsLast7Days": [
+      3,
+      5,
+      5,
+      4,
+      5,
+      3,
+      5
+    ]
+  },
+  {
+    "workflow": {
+      "id": "0199a0c0-0000-7000-8000-000000000105",
+      "userId": "0199a0c0-0000-7000-8000-000000000001",
+      "name": "Failed tributes follow-up",
+      "description": "Email the trader, then keep a note in the Archives. Needs Galactic Credits.",
+      "status": "draft",
+      "statusReason": null,
+      "version": 1,
+      "trigger": {
+        "id": "trigger",
+        "appId": "stripe",
+        "triggerKey": "payment_failed",
+        "credentialId": null,
+        "inputs": {}
+      },
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "action",
+          "name": "Email the customer",
+          "appId": "gmail",
+          "actionKey": "send_email",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000201",
+          "inputs": {
+            "to": "{{ trigger.customer_email }}"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "action",
+          "name": "Log it in Notion",
+          "appId": "notion",
+          "actionKey": "add_row",
+          "credentialId": "0199a0c0-0000-7000-8000-000000000204",
+          "inputs": {
+            "database": "finance"
+          }
+        }
+      ],
+      "links": [
+        {
+          "id": "link_1",
+          "from": "trigger",
+          "to": "node_1"
+        },
+        {
+          "id": "link_2",
+          "from": "node_1",
+          "to": "node_2"
+        }
+      ],
+      "createdAt": "2026-11-12T18:20:00+01:00",
+      "updatedAt": "2026-11-12T18:20:00+01:00",
+      "lastRunAt": null
+    },
+    "services": [
+      "stripe",
+      "gmail",
+      "notion"
+    ],
+    "lastRun": null,
+    "runsLast7Days": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]

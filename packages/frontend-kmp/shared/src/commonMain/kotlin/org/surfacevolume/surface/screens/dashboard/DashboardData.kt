@@ -1,18 +1,34 @@
 package org.surfacevolume.surface.screens.dashboard
 
 import androidx.compose.ui.graphics.Color
+import org.surfacevolume.core.AppCatalogueEntry
+import org.surfacevolume.core.ConnectionStatus
+import org.surfacevolume.core.DemoData
+import org.surfacevolume.core.RunStatus
+import org.surfacevolume.core.WorkflowListItem
+import org.surfacevolume.core.WorkflowStatus as ApiStatus
+import org.surfacevolume.core.formatDuration
+import org.surfacevolume.core.relativeTime
+import org.surfacevolume.core.runDurationMillis
 import org.surfacevolume.surface.components.AppIcon
 import org.surfacevolume.surface.components.PillTone
 
-// mock data, we will have to replace this with api calls
+enum class Service(val appId: String, val label: String, val icon: AppIcon, val tint: Color) {
+    Gmail("gmail", "HoloNet Mail", AppIcon.Mail, Color(0xFFB3261E)),
+    Drive("drive", "Death Star Plans Vault", AppIcon.Folder, Color(0xFF17764A)),
+    Slack("slack", "Rebel Comms", AppIcon.Chat, Color(0xFF6A3D9A)),
+    Notion("notion", "Jedi Archives", AppIcon.Page, Color(0xFF3A3A40)),
+    Calendar("calendar", "Imperial Schedule", AppIcon.Calendar, Color(0xFF1B6FC4)),
+    GitHub("github", "Droid Forge", AppIcon.Code, Color(0xFF43434A)),
+    Linear("linear", "Order Tracker", AppIcon.Layers, Color(0xFF6150A8)),
+    Stripe("stripe", "Galactic Credits", AppIcon.Layers, Color(0xFF4A3F8F)),
+    Webhook("webhook", "Hypercomms Relay", AppIcon.Code, Color(0xFF8A5A00)),
+    Discord("discord", "Cantina Chat", AppIcon.Chat, Color(0xFF4756A8)),
+    ;
 
-enum class Service(val label: String, val icon: AppIcon, val tint: Color) {
-    Gmail("Gmail", AppIcon.Mail, Color(0xFFB3261E)),
-    Drive("Google Drive", AppIcon.Folder, Color(0xFF17764A)),
-    Slack("Slack", AppIcon.Chat, Color(0xFF6A3D9A)),
-    Notion("Notion", AppIcon.Page, Color(0xFF3A3A40)),
-    Calendar("Google Calendar", AppIcon.Calendar, Color(0xFF1B6FC4)),
-    GitHub("GitHub", AppIcon.Code, Color(0xFF43434A)),
+    companion object {
+        fun of(appId: String): Service? = entries.firstOrNull { it.appId == appId }
+    }
 }
 
 enum class WorkflowStatus(val label: String, val tone: PillTone, val icon: AppIcon?) {
@@ -64,78 +80,53 @@ data class Template(
     val services: List<Service>,
 )
 
-val DemoWorkflows: List<Workflow> = listOf(
-    Workflow(
-        id = "invoices",
-        name = "Invoices to the books",
-        intent = "File supplier invoices, log them, and ask before paying the big ones.",
-        trigger = "Mail from a supplier",
-        services = listOf(Service.Gmail, Service.Drive, Service.Notion, Service.Slack),
-        steps = 5,
-        lastRun = "12 min ago",
-    ),
-    Workflow(
-        id = "standup",
-        name = "Standup reminder",
-        intent = "Post the agenda ten minutes before the team standup.",
-        trigger = "Event starts soon",
-        services = listOf(Service.Calendar, Service.Slack),
-        steps = 2,
-        lastRun = "1 h ago",
-    ),
-    Workflow(
-        id = "contracts",
-        name = "Archive signed contracts",
-        intent = "Move signed PDFs into the legal folder and log the client.",
-        trigger = "File added to a folder",
-        services = listOf(Service.Drive, Service.Notion),
-        steps = 3,
-        enabled = false,
-        lastRun = "Yesterday",
-    ),
-    Workflow(
-        id = "triage",
-        name = "Triage new issues",
-        intent = "Label incoming issues and ping the owner in Slack.",
-        trigger = "Issue opened",
-        services = listOf(Service.GitHub, Service.Slack),
-        steps = 4,
-        needsAttention = true,
-        lastRun = "2 h ago",
-        lastRunOk = false,
-    ),
-    Workflow(
-        id = "payments",
-        name = "Payments follow-up",
-        intent = "Remind the finance channel about invoices still unpaid after a week.",
-        trigger = "Label applied",
-        services = listOf(Service.Gmail, Service.Slack),
-        steps = 3,
-        enabled = false,
-        draft = true,
-        lastRun = null,
-    ),
-)
+private val catalogueById: Map<String, AppCatalogueEntry> = DemoData.catalogue.associateBy { it.id }
 
-val DemoRuns: List<Run> = listOf(
-    Run("Invoices to the books", Service.Gmail, "12 min ago", "3.4 s", true),
-    Run("Triage new issues", Service.GitHub, "2 h ago", "0.9 s", false),
-    Run("Standup reminder", Service.Calendar, "1 h ago", "1.2 s", true),
-    Run("Invoices to the books", Service.Gmail, "3 h ago", "4.1 s", true),
-    Run("Archive signed contracts", Service.Drive, "Yesterday", "2.0 s", true),
-    Run("Standup reminder", Service.Calendar, "Yesterday", "1.1 s", true),
-    Run("Invoices to the books", Service.Gmail, "Yesterday", "3.9 s", false),
-    Run("Payments follow-up", Service.Gmail, "2 days ago", "—", false),
-)
+private fun triggerLabel(appId: String, triggerKey: String): String =
+    catalogueById[appId]?.triggers?.get(triggerKey)
+        ?: triggerKey.replace('_', ' ')
 
-val DemoServices: List<ServiceConnection> = listOf(
-    ServiceConnection(Service.Gmail, "alex@epitech.eu", connected = true),
-    ServiceConnection(Service.Drive, "alex@epitech.eu", connected = true),
-    ServiceConnection(Service.Slack, "area-lab.slack.com", connected = true),
-    ServiceConnection(Service.Notion, "Finance workspace", connected = true),
-    ServiceConnection(Service.Calendar, "alex@epitech.eu", connected = true),
-    ServiceConnection(Service.GitHub, "alex · expired 2 days ago", connected = false),
-)
+private fun WorkflowListItem.toRow(): Workflow {
+    val resource = workflow
+    return Workflow(
+        id = resource.id,
+        name = resource.name,
+        intent = resource.description.orEmpty(),
+        trigger = triggerLabel(resource.trigger.appId, resource.trigger.triggerKey),
+        services = services.mapNotNull(Service::of),
+        steps = 1 + resource.nodes.size,
+        enabled = resource.status == ApiStatus.ON || resource.status == ApiStatus.ERROR,
+        draft = resource.status == ApiStatus.DRAFT,
+        needsAttention = resource.status == ApiStatus.ERROR,
+        lastRun = lastRun?.let { run -> relativeTime(run.finishedAt ?: run.queuedAt, DemoData.NOW) },
+        lastRunOk = lastRun?.status != RunStatus.FAILED,
+    )
+}
+
+val DemoWorkflows: List<Workflow> = DemoData.workflows.map { it.toRow() }
+
+private val workflowNames: Map<String, WorkflowListItem> =
+    DemoData.workflows.associateBy { it.workflow.id }
+
+val DemoRuns: List<Run> = DemoData.runs.map { run ->
+    val item = workflowNames[run.workflowId]
+    Run(
+        workflow = item?.workflow?.name ?: "Workflow",
+        service = item?.workflow?.trigger?.appId?.let(Service::of) ?: Service.Webhook,
+        whenLabel = relativeTime(run.finishedAt ?: run.queuedAt, DemoData.NOW),
+        duration = formatDuration(runDurationMillis(run)),
+        ok = run.status != RunStatus.FAILED,
+    )
+}
+
+val DemoServices: List<ServiceConnection> = DemoData.connections.mapNotNull { connection ->
+    val service = Service.of(connection.appId) ?: return@mapNotNull null
+    ServiceConnection(
+        service = service,
+        account = connection.account ?: connection.appName,
+        connected = connection.status == ConnectionStatus.ACTIVE,
+    )
+}
 
 val DemoTemplates: List<Template> = listOf(
     Template(
@@ -155,4 +146,4 @@ val DemoTemplates: List<Template> = listOf(
     ),
 )
 
-val DemoPerDay: List<Int> = listOf(12, 18, 9, 22, 16, 7, 14, 19, 11, 8, 21, 17, 13, 15)
+val DemoPerDay: List<Int> = DemoData.stats.runsPerDay

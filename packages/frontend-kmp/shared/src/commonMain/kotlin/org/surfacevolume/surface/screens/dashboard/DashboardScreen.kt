@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.surfacevolume.surface.AuthSession
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.AppBar
 import org.surfacevolume.surface.components.AppIcon
@@ -70,6 +71,7 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(initialTab) }
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(WorkflowFilter.All) }
+    var building by remember { mutableStateOf(false) }
     val workflows = remember { DemoWorkflows.toMutableStateList() }
     val runs = remember { DemoRuns.toMutableStateList() }
 
@@ -80,6 +82,7 @@ fun DashboardScreen(
             workflows[index] = workflow.copy(
                 enabled = enabled,
                 draft = if (enabled) false else workflow.draft,
+                needsAttention = false,
             )
         }
     }
@@ -109,6 +112,22 @@ fun DashboardScreen(
             ),
         )
         tab = DashboardTab.Workflows
+    }
+
+    if (building) {
+        BuilderScreen(
+            onBack = { building = false },
+            onSave = { result ->
+                createWorkflow(
+                    title = result.name,
+                    services = result.services,
+                    trigger = result.trigger,
+                    steps = result.steps,
+                )
+                building = false
+            },
+        )
+        return
     }
 
     AppShell(
@@ -157,14 +176,7 @@ fun DashboardScreen(
                     onFilterChange = { filter = it },
                     onToggle = ::toggle,
                     onRun = ::runNow,
-                    onCreate = {
-                        createWorkflow(
-                            title = "Untitled workflow",
-                            services = listOf(Service.Gmail),
-                            trigger = "Choose a trigger",
-                            steps = 1,
-                        )
-                    },
+                    onCreate = { building = true },
                     onUseTemplate = { template ->
                         createWorkflow(
                             title = template.name,
@@ -189,7 +201,7 @@ fun DashboardScreen(
                     email = email,
                     darkTheme = darkTheme,
                     onToggleTheme = onToggleTheme,
-                    onSignOut = onSignOut,
+                    onSignOut = { AuthSession.clear(); onSignOut() },
                 )
             }
         },

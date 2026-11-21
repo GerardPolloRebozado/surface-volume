@@ -48,8 +48,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.surfacevolume.surface.AuthApi
+import org.surfacevolume.surface.LocalApiConfig
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.Brand
 import org.surfacevolume.surface.components.Button
@@ -63,9 +64,6 @@ import org.surfacevolume.surface.components.TextField
 import org.surfacevolume.surface.components.TextLink
 import org.surfacevolume.surface.components.TopRule
 
-/**
- * The prototype has no auth endpoint yet, so any log in works.
- */
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
@@ -75,6 +73,7 @@ fun LoginScreen(
     onSso: () -> Unit = {},
 ) {
     val colors = LocalAppColors.current
+    val config = LocalApiConfig.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showingPassword by remember { mutableStateOf(false) }
@@ -95,9 +94,12 @@ fun LoginScreen(
         focusManager.clearFocus()
         busy = true
         scope.launch {
-            delay(700)
+            val result = AuthApi.signIn(config, email, password)
             busy = false
-            onSignIn(email.trim())
+            result.fold(
+                onSuccess = { onSignIn(it) },
+                onFailure = { error = it.message ?: "Sign in failed" },
+            )
         }
     }
 
@@ -265,7 +267,7 @@ fun LoginScreen(
                         lineHeight = 17.sp,
                     )
                     HintText(
-                        text = AuthStrings.server,
+                        text = "Connected to ${config.url("")}",
                         fontSize = 10.5.sp,
                         lineHeight = 17.sp,
                     )
@@ -316,7 +318,6 @@ private object AuthStrings {
     const val sso = "Continue with Epitech SSO"
     const val ssoHint = "OpenID Connect · single sign-on"
     const val secure = "Sessions expire after 30 days. We never store service passwords."
-    const val server = "Connected to area.epitech.eu. Prototype screens"
     const val noAccount = "No account yet?"
     const val createAccount = "Create one"
     const val errorRequired = "Enter your email address and password."
