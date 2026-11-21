@@ -1,0 +1,97 @@
+[
+  {
+    "id": "gmail",
+    "name": "HoloNet Mail",
+    "triggers": {
+      "new_email": "HoloNet message arrives"
+    },
+    "actions": {
+      "send_email": "Send a HoloNet message"
+    }
+  },
+  {
+    "id": "drive",
+    "name": "Death Star Plans Vault",
+    "triggers": {
+      "file_added": "File added to a vault"
+    },
+    "actions": {
+      "upload_file": "Upload a file",
+      "move_file": "Move a file"
+    }
+  },
+  {
+    "id": "slack",
+    "name": "Rebel Comms",
+    "triggers": {},
+    "actions": {
+      "post_message": "Post a message"
+    }
+  },
+  {
+    "id": "notion",
+    "name": "Jedi Archives",
+    "triggers": {},
+    "actions": {
+      "add_row": "Add an archive row",
+      "update_page": "Update a page"
+    }
+  },
+  {
+    "id": "calendar",
+    "name": "Imperial Schedule",
+    "triggers": {
+      "event_starting": "Event starts soon"
+    },
+    "actions": {
+      "create_event": "Create an event"
+    }
+  },
+  {
+    "id": "github",
+    "name": "Droid Forge",
+    "triggers": {
+      "issue_opened": "Issue opened"
+    },
+    "actions": {
+      "create_issue": "Open an issue",
+      "add_label": "Add a label"
+    }
+  },
+  {
+    "id": "linear",
+    "name": "Order Tracker",
+    "triggers": {},
+    "actions": {
+      "create_issue": "Create an issue"
+    }
+  },
+  {
+    "id": "stripe",
+    "name": "Galactic Credits",
+    "triggers": {
+      "payment_failed": "Payment fails"
+    },
+    "actions": {
+      "refund": "Refund a charge"
+    }
+  },
+  {
+    "id": "webhook",
+    "name": "Hypercomms Relay",
+    "triggers": {
+      "incoming": "Incoming transmission"
+    },
+    "actions": {
+      "call": "Call a URL"
+    }
+  },
+  {
+    "id": "discord",
+    "name": "Cantina Chat",
+    "triggers": {},
+    "actions": {
+      "post_message": "Post a message"
+    }
+  }
+]

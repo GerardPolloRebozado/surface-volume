@@ -49,6 +49,7 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
+            implementation(project(":core"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -59,11 +60,11 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
             // Ktor core - multiplatform artifact, works on all targets
-            implementation("io.ktor:ktor-client-core:3.6.1")
-            implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
-            implementation("io.ktor:ktor-client-serialization:3.6.1")
-            implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.0")
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.serialization)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -72,29 +73,29 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             // OkHttp engine for Android
-            implementation("io.ktor:ktor-client-okhttp:3.6.1")
+            implementation(libs.ktor.client.okhttp)
         }
         jvmMain.dependencies {
             // OkHttp engine for JVM desktop
-            implementation("io.ktor:ktor-client-okhttp:3.6.1")
+            implementation(libs.ktor.client.okhttp)
         }
         iosArm64Main.dependencies {
             // Darwin engine for iOS device
-            implementation("io.ktor:ktor-client-darwin:3.6.1")
+            implementation(libs.ktor.client.darwin)
         }
         iosSimulatorArm64Main.dependencies {
             // Darwin engine for iOS simulator
-            implementation("io.ktor:ktor-client-darwin:3.6.1")
+            implementation(libs.ktor.client.darwin)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
             // JS engine for web
-            implementation("io.ktor:ktor-client-js:3.6.1")
+            implementation(libs.ktor.client.js)
         }
         wasmJsMain.dependencies {
             implementation(libs.wrappers.browser)
             // JS engine for Wasm (uses browser fetch)
-            implementation("io.ktor:ktor-client-js:3.6.1")
+            implementation(libs.ktor.client.js)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)

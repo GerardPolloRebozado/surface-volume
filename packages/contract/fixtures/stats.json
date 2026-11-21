@@ -1,0 +1,8 @@
+{
+  "weekRuns": 128,
+  "failed": 4,
+  "successRate": 96.9,
+  "delta": 1.4,
+  "runsToday": 4,
+  "runsPerDay": [12, 18, 9, 22, 16, 7, 14, 19, 11, 8, 21, 17, 13, 15]
+}

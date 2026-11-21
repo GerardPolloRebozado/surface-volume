@@ -1,0 +1,10 @@
+---
+import App from '../layouts/App.astro'
+import { WorkflowsRoute } from '../routes/Workflows'
+import { BACKEND_URL } from '../lib/auth'
+
+const user = Astro.locals.user!
+---
+<App title="Workflows · area" active="workflows">
+  <WorkflowsRoute client:load user={user} server={BACKEND_URL} />
+</App>

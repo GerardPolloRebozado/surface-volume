@@ -1,0 +1,9 @@
+---
+import App from '../../layouts/App.astro'
+import { BuilderRoute } from '../../routes/Builder'
+
+const workflowId = Astro.params.id
+---
+<App title="Builder · area" active="builder">
+  <BuilderRoute client:only="react" workflowId={workflowId} />
+</App>
