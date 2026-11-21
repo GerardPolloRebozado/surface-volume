@@ -1,4 +1,4 @@
-export const BACKEND_URL = import.meta.env.BACKEND_URL ?? 'http://localhost:8080'
+export { BACKEND_URL } from './api-client'
 
 export const ACCESS_COOKIE = 'access_token'
 export const REFRESH_COOKIE = 'refresh_token'

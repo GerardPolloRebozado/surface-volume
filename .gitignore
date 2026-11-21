@@ -121,3 +121,6 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+
+api-client-kt
+api-client-ts

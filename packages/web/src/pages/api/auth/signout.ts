@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro'
-import { BACKEND_URL, forwardCookies } from '../../../lib/auth'
+import { BACKEND_URL } from '../../../lib/api-client'
+import { forwardCookies } from '../../../lib/auth'
 
 export const GET: APIRoute = async ({ cookies, request }) => {
   const token = cookies.get('access_token')?.value
