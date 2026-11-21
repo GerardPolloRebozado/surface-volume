@@ -59,15 +59,15 @@ jobs:
           sleep 15
 
           # Fetch OpenAPI JSON from running server
-          curl -s http://localhost:8080/api-json > openapi.json
+          curl -s http://localhost:8080/api-json > packages/backend-nestjs/openapi.json
 
           # Stop backend
           kill $BACKEND_PID 2>/dev/null || true
 
           echo "OpenAPI JSON generated at packages/backend-nestjs/openapi.json"
-          head -20 openapi.json
+          head -20 packages/backend-nestjs/openapi.json
 
-      - name: Generate Kotlin API client
+      - name: Generate Kotlin and TypeScript API clients
         run: |
           chmod +x scripts/generate-api-client.sh
           bash scripts/generate-api-client.sh
@@ -75,13 +75,13 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git diff --quiet packages/api-client/ packages/backend-nestjs/openapi.json || echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+          git diff --quiet packages/api-client-kt/ packages/api-client-ts/ packages/backend-nestjs/openapi.json || echo "changes_detected=true" >> "$GITHUB_OUTPUT"
 
-      - name: Commit generated client
+      - name: Commit generated clients
         if: github.event_name == 'push' && steps.changes.outputs.changes_detected == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/api-client/ packages/backend-nestjs/openapi.json
-          git commit -m "🤖 Generated Kotlin API client from OpenAPI spec"
+          git add packages/api-client-kt/ packages/api-client-ts/ packages/backend-nestjs/openapi.json
+          git commit -m "🤖 Generated Kotlin and TypeScript API clients from OpenAPI spec"
           git push

@@ -18,6 +18,32 @@ echo "OpenAPI spec: $OPENAPI_JSON"
 echo "Kotlin output: $OUTPUT_DIR_KT"
 echo "TypeScript output: $OUTPUT_DIR_TS"
 
+# Step 1: Ensure OpenAPI JSON exists by building/starting the NestJS backend
+if [ ! -f "$OPENAPI_JSON" ]; then
+  echo "=== OpenAPI JSON not found, building NestJS backend ==="
+  cd "$REPO_ROOT/packages/backend-nestjs"
+  pnpm run build 2>&1 | tail -5
+fi
+
+if [ ! -f "$OPENAPI_JSON" ]; then
+  # Try to start the backend server in background to generate the spec
+  echo "=== Starting NestJS backend to generate OpenAPI spec ==="
+  cd "$REPO_ROOT/packages/backend-nestjs"
+  pnpm run start:dev &
+  BACKEND_PID=$!
+  sleep 20
+
+  # Fetch OpenAPI JSON from running server
+  curl -s http://localhost:8080/api-json > "$OPENAPI_JSON" 2>/dev/null || {
+    echo "ERROR: Could not fetch OpenAPI spec from localhost:8080"
+    kill $BACKEND_PID 2>/dev/null || true
+    exit 1
+  }
+
+  # Stop backend
+  kill $BACKEND_PID 2>/dev/null || true
+fi
+
 if [ ! -f "$OPENAPI_JSON" ]; then
   echo "ERROR: OpenAPI JSON not found at $OPENAPI_JSON"
   echo "Run the NestJS backend first to generate the spec, or run 'pnpm run build' in packages/backend-nestjs"
@@ -27,6 +53,20 @@ fi
 # Clean output directories so we always regenerate from scratch
 rm -rf "$OUTPUT_DIR_KT" "$OUTPUT_DIR_TS"
 mkdir -p "$OUTPUT_DIR_KT" "$OUTPUT_DIR_TS"
+
+# Create package.json for the TypeScript client so pnpm can resolve its axios dependency
+cat > "$OUTPUT_DIR_TS/package.json" << 'PACKAGE_EOF'
+{
+  "name": "api-client-ts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "axios": "1.9.0",
+  }
+}
+PACKAGE_EOF
 
 # Generate Kotlin Multiplatform API client via Docker
 echo ""
@@ -42,7 +82,8 @@ docker run --rm \
   -p kotlinPackage=surfacevolume.api \
   -p apiPackage=surfacevolume.api.client \
   -p modelPackage=surfacevolume.api.models \
-  -p dateTimeType=java.time.LocalDateTime \
+  -p library=multiplatform \
+  -p dateLibrary=kotlinx-datetime \
   -o "$OUTPUT_DIR_KT"
 
 # Generate TypeScript (axios) API client via Docker

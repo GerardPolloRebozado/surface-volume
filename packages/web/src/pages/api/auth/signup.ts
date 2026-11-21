@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro'
-import { BACKEND_URL } from '../../../lib/api-client'
-import { forwardCookies } from '../../../lib/auth'
+import { api as apiClient } from '../../../lib/api-client'
+import { forwardAxiosCookies } from '../../../lib/auth'
 
 export const POST: APIRoute = async ({ request }) => {
   let body: unknown
@@ -10,18 +10,21 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ message: 'Invalid JSON' }), { status: 400 })
   }
 
-  let response: Response
   try {
-    response = await fetch(`${BACKEND_URL}/auth/sign-up`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+    const signUpDto = body as { username: string; email: string; password: string }
+    const response = await apiClient.auth.authControllerSignUp({
+      username: signUpDto.username.trim(),
+      email: signUpDto.email.trim(),
+      password: signUpDto.password,
     })
-  } catch {
+
+    const headers = forwardAxiosCookies(response as any)
+    headers.set('content-type', 'application/json')
+    return new Response(JSON.stringify(response.data), {
+      status: response.status,
+      headers,
+    })
+  } catch (e: any) {
     return new Response(JSON.stringify({ message: 'Backend unavailable' }), { status: 502 })
   }
-
-  const headers = forwardCookies(response)
-  headers.set('content-type', 'application/json')
-  return new Response(await response.text(), { status: response.status, headers })
 }

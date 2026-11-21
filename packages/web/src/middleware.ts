@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware'
-import { ACCESS_COOKIE, BACKEND_URL } from './lib/auth'
+import { api as apiClient } from './lib/api-client'
+import { ACCESS_COOKIE } from './lib/auth'
 import type { AuthUser } from './lib/session'
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -21,11 +22,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!token) return context.redirect('/signin')
 
   try {
-    const response = await fetch(`${BACKEND_URL}/auth/me`, {
+    const response = await apiClient.auth.authControllerGetMe({
       headers: { authorization: `Bearer ${token}` },
     })
-    if (!response.ok) throw new Error('unauthorized')
-    context.locals.user = (await response.json()) as AuthUser
+    context.locals.user = response.data as AuthUser
   } catch {
     context.cookies.delete(ACCESS_COOKIE, { path: '/' })
     context.cookies.delete('refresh_token', { path: '/' })

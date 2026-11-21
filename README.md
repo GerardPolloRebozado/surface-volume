@@ -158,27 +158,29 @@ without failing the build.
 
 ---
 
-## Type sharing: OpenAPI → Kotlin client
+## Type sharing: OpenAPI -> API clients
 
-The frontend calls the backend through a **generated** Kotlin client, so the API contract is type-safe and changes in the backend are caught at compile time.
+The frontends call the backend through generated API clients, so the API contract is type-safe and changes in the backend are caught at compile time.
 
 ### How it works
 
-```
 NestJS DTOs (@nestjs/swagger decorators)
-        │
-        └─▶ openapi.json  (written by src/main.ts on startup)
-                  │
-                  └─▶ scripts/generate-api-client.sh
-                            │
-                            ▼
-                   packages/api-client/   (generated Kotlin client)
-                            │
-                            ▼
-                   frontend-kmp/shared/   (imports generated client)
-```
+        |
+        v openapi.json  (written by src/main.ts on startup)
+                  |
+                  v scripts/generate-api-client.sh
+                            |
+                            +-> packages/api-client-kt/   (generated Kotlin Multiplatform client, uses Ktor)
+                            |                               |
+                            |                               v
+                            |                          frontend-kmp/shared/   (imports generated client)
+                            |
+                            +-> packages/api-client-ts/   (generated TypeScript/Axios client)
+                                        |
+                                        v
+                                  packages/web/   (imports via @api-client alias)
 
-### Generate the client locally
+### Generate both clients locally
 
 ```bash
 # From repo root
@@ -187,30 +189,40 @@ bash scripts/generate-api-client.sh
 
 Requires Docker (uses `openapitools/openapi-generator-cli`).
 
-### What you get
+The script:
+1. Ensures the OpenAPI spec exists (builds/starts NestJS if needed)
+2. Generates the Kotlin Multiplatform client (library=multiplatform, Ktor-based) -> packages/api-client-kt/
+3. Generates the TypeScript/Axios client -> packages/api-client-ts/
 
-Generated Kotlin classes in `packages/api-client/`:
+### Kotlin client usage (KMP)
 
 ```kotlin
-// Example usage in shared Kotlin code
-val api = ApiClientFactory.create()      // DefaultApi from OpenAPI
-val workflows: List<WorkflowDto> = api.getWorkflows()  // type-safe data class
+import surfacevolume.api.client.AuthApi
+import surfacevolume.api.models.SignInDto
+
+val api = AuthApi(baseUrl = "http://localhost:8080")
+val response = api.authControllerSignIn(SignInDto("user@example.com", "password"))
+if (response.success) {
+    val tokens = response.body()
+    // tokens.accessToken, tokens.refreshToken
+}
 ```
 
----
+The generated client is copied into packages/frontend-kmp/shared/src/commonMain/kotlin/ so it's available on all KMP targets (JVM, Android, iOS, JS, Wasm).
 
-## CI/CD — API client regeneration
+### TypeScript client usage (Astro)
 
-`.github/workflows/generate-api-client.yml` runs on pushes to `main`/`develop` that touch `packages/backend-nestjs/`:
+```ts
+import { authApi } from '@/lib/api-client'
 
-1. Builds the NestJS backend
-2. Starts the server and fetches `openapi.json`
-3. Runs OpenAPI Generator to produce the Kotlin client
-4. Commits the regenerated client back to the repo (no manual client commits)
+const response = await authApi.authControllerSignIn({
+  email: 'user@example.com',
+  password: 'password',
+})
+```
 
-The generated client is **not** meant to be hand-edited — it is always regenerated from the OpenAPI spec.
+The generated client is not meant to be hand-edited — it is always regenerated from the OpenAPI spec.
 
----
 
 ## Commands reference
 
@@ -224,7 +236,7 @@ The generated client is **not** meant to be hand-edited — it is always regener
 | `./gradlew :androidApp:installDebug` | `packages/frontend-kmp` | Install Android app on device |
 | `pnpm dev:web` | root | Start the React dev server |
 | `pnpm build:web` | root | Type-check and bundle the React app |
-| `bash scripts/generate-api-client.sh` | root | Generate Kotlin client from OpenAPI |
+| `bash scripts/generate-api-client.sh` | root | Generate Kotlin + TypeScript clients from OpenAPI |
 
 ---
 
