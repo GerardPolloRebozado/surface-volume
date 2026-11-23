@@ -33,3 +33,7 @@ export function actionErrorResult(error: unknown): ActionResult {
 export function jsonOutputs(value: Record<string, unknown>): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
+
+export function jsonValue(value: unknown): Prisma.InputJsonValue {
+  return value as Prisma.InputJsonValue;
+}

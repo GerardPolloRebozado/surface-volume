@@ -50,7 +50,10 @@ export class RunsService {
       });
 
       const steps = [];
-      for (const [index, continuation] of planContinuations(input.window, 'trigger').entries()) {
+      for (const [index, continuation] of planContinuations(input.window, 'trigger', {
+        iteration: 0,
+        values: { trigger: input.event.data },
+      }).entries()) {
         const step = await tx.runStep.create({
           data: {
             run: { connect: { id: run.id } },
