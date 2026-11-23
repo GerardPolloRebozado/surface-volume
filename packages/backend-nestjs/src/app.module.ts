@@ -17,6 +17,8 @@ import {
 import { join } from 'node:path';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
+import { QueueModule } from './queue/queue.module';
+import { WorkflowsModule } from './workflow/workflows.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { ScheduleModule } from '@nestjs/schedule';
         port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
       },
     }),
+    QueueModule,
+    WorkflowsModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],
