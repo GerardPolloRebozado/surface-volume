@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { TriggersService } from '../triggers/triggers.service';
 import { InternalGuard } from './internal.guard';
-import { StepRunnerService } from './step-runner.service';
+import { StepRunnerService, type StepResultBody } from './step-runner.service';
 
 @Public()
 @Controller('internal')
@@ -20,12 +20,22 @@ export class InternalController {
     private readonly triggers: TriggersService,
   ) {}
 
-  @Post('steps/:stepId/run')
-  async runStep(
+  @Post('steps/:stepId/claim')
+  async claimStep(
     @Param('stepId') stepId: string,
     @Body() body: { attempt?: number },
   ) {
-    const result = await this.steps.run(stepId, body?.attempt ?? 1);
+    const result = await this.steps.claim(stepId, body?.attempt ?? 1);
+    if ('reason' in result) throw new ConflictException(result);
+    return result;
+  }
+
+  @Post('steps/:stepId/result')
+  async finishStep(
+    @Param('stepId') stepId: string,
+    @Body() body: StepResultBody & { attempt?: number },
+  ) {
+    const result = await this.steps.result(stepId, body?.attempt ?? 1, body);
     if ('reason' in result) throw new ConflictException(result);
     return result;
   }

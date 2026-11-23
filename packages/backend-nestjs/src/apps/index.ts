@@ -4,8 +4,9 @@ import type {
   TriggerDefinition,
 } from '../workflow';
 import { gmailApp } from './gmail/gmail.app';
+import { httpApp } from './http/http.app';
 
-export const apps: AppDefinition[] = [gmailApp];
+export const apps: AppDefinition[] = [gmailApp, httpApp];
 
 export function findApp(appId: string): AppDefinition | undefined {
   return apps.find((app) => app.id === appId);

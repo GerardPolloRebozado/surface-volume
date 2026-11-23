@@ -23,6 +23,11 @@ export class ExecutorService {
       };
     }
 
+    if (action.plan) {
+      const plan = await action.plan({ ...context, inputs });
+      return { status: 'planned', outputs: {}, plan };
+    }
+
     return runWithAction(action, inputs, context);
   }
 }

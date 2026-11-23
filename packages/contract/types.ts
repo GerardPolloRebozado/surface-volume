@@ -129,3 +129,16 @@ export interface RunStep {
 export interface RunDetail extends WorkflowRun {
   steps: RunStep[]
 }
+
+export interface PlanCall {
+  id: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  headers?: Record<string, string>
+  body?: unknown
+  outputs?: Record<string, string>
+}
+
+export interface ActionPlan {
+  calls: PlanCall[]
+}

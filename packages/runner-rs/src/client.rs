@@ -23,12 +23,16 @@ impl InternalApi {
         })
     }
 
-    pub async fn run_step(&self, step_id: &str, attempt: u64) -> Result<Value> {
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
+    async fn post(&self, path: String, body: Value) -> Result<(StatusCode, Value)> {
         let response = self
             .http
-            .post(format!("{}/internal/steps/{}/run", self.base_url, step_id))
+            .post(format!("{}{}", self.base_url, path))
             .header("x-service-token", &self.token)
-            .json(&json!({ "attempt": attempt }))
+            .json(&body)
             .send()
             .await?;
 
@@ -36,37 +40,41 @@ impl InternalApi {
         let body: Value = response.json().await.unwrap_or(Value::Null);
 
         if status == StatusCode::CONFLICT {
-            return Ok(body);
+            return Ok((status, body));
         }
         if !status.is_success() {
             return Err(anyhow!("internal api returned {}: {}", status, body));
         }
 
+        Ok((status, body))
+    }
+
+    pub async fn claim_step(&self, step_id: &str, attempt: u64) -> Result<Value> {
+        let (_, body) = self
+            .post(
+                format!("/internal/steps/{}/claim", step_id),
+                json!({ "attempt": attempt }),
+            )
+            .await?;
         Ok(body)
     }
 
-    pub async fn poll_trigger(&self, trigger_id: &str, due_at: &str) -> Result<Value> {
-        let response = self
-            .http
-            .post(format!(
-                "{}/internal/triggers/{}/poll",
-                self.base_url, trigger_id
-            ))
-            .header("x-service-token", &self.token)
-            .json(&json!({ "dueAt": due_at }))
-            .send()
+    pub async fn report_step(&self, step_id: &str, attempt: u64, outcome: Value) -> Result<Value> {
+        let mut body = outcome;
+        body["attempt"] = json!(attempt);
+        let (_, result) = self
+            .post(format!("/internal/steps/{}/result", step_id), body)
             .await?;
+        Ok(result)
+    }
 
-        let status = response.status();
-        let body: Value = response.json().await.unwrap_or(Value::Null);
-
-        if status == StatusCode::CONFLICT {
-            return Ok(body);
-        }
-        if !status.is_success() {
-            return Err(anyhow!("internal api returned {}: {}", status, body));
-        }
-
+    pub async fn poll_trigger(&self, trigger_id: &str, due_at: &str) -> Result<Value> {
+        let (_, body) = self
+            .post(
+                format!("/internal/triggers/{}/poll", trigger_id),
+                json!({ "dueAt": due_at }),
+            )
+            .await?;
         Ok(body)
     }
 }

@@ -1,11 +1,13 @@
 import { ActionError } from './actions.types';
 import type { Prisma } from '../generated/prisma/client';
+import type { ActionPlan } from './action-plan';
 
 type ErrorKind = 'retryable' | 'fatal' | 'auth_expired' | 'rate_limited';
 
 export interface ActionResult {
-  status: 'succeeded' | 'failed';
+  status: 'succeeded' | 'failed' | 'planned';
   outputs: Record<string, unknown>;
+  plan?: ActionPlan;
   errorKind?: ErrorKind;
   errorMessage?: string;
   retryAfterMs?: number;

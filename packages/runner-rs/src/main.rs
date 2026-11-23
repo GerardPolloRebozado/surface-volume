@@ -1,9 +1,11 @@
 mod client;
+mod executor;
 
 use bullmq::options::{RedisConnectionOptions, WorkerOptions};
 use bullmq::{Error as BullmqError, Job, Worker};
 use client::InternalApi;
-use serde_json::json;
+use executor::ActionPlan;
+use serde_json::{json, Value};
 use std::env;
 use std::sync::Arc;
 
@@ -11,6 +13,33 @@ fn redis_options() -> RedisConnectionOptions {
     let mut opts = RedisConnectionOptions::default();
     opts.url = env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".into());
     opts
+}
+
+fn to_worker_error(error: anyhow::Error) -> BullmqError {
+    BullmqError::InvalidConfig(error.to_string())
+}
+
+async fn run_step(api: &InternalApi, step_id: &str, attempt: u64) -> anyhow::Result<Value> {
+    let claim = api.claim_step(step_id, attempt).await?;
+    if claim.get("reason").is_some() || claim.get("plan").is_none() {
+        return Ok(claim);
+    }
+
+    let plan: ActionPlan = serde_json::from_value(claim["plan"].clone())?;
+    let (outputs, error) = executor::execute_plan(api.http(), plan).await?;
+
+    let outcome = match error {
+        None => json!({ "status": "succeeded", "outputs": outputs }),
+        Some(error) => json!({
+            "status": "failed",
+            "outputs": outputs,
+            "errorKind": error.kind,
+            "errorMessage": error.message,
+            "retryAfterMs": error.retry_after_ms,
+        }),
+    };
+
+    api.report_step(step_id, attempt, outcome).await
 }
 
 async fn work() -> anyhow::Result<()> {
@@ -32,10 +61,9 @@ async fn work() -> anyhow::Result<()> {
                             BullmqError::InvalidConfig("missing stepId".into())
                         })?;
                         let attempt = data["attempt"].as_u64().unwrap_or(1);
-                        let result = api
-                            .run_step(step_id, attempt)
+                        let result = run_step(&api, step_id, attempt)
                             .await
-                            .map_err(|error| BullmqError::InvalidConfig(error.to_string()))?;
+                            .map_err(to_worker_error)?;
                         Ok(result)
                     }
                     "poll" => {
@@ -47,7 +75,7 @@ async fn work() -> anyhow::Result<()> {
                         let result = api
                             .poll_trigger(trigger_id, due_at)
                             .await
-                            .map_err(|error| BullmqError::InvalidConfig(error.to_string()))?;
+                            .map_err(to_worker_error)?;
                         Ok(result)
                     }
                     other => Ok(json!({ "skipped": other })),
