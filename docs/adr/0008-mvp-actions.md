@@ -37,7 +37,7 @@ The MVP workflow is:
 - **Both actions on Spotify** (`add_tracks_to_playlist` and `save_to_library`). This meets the count of two, and it stays on one OAuth app. It does not show the product connecting two services.
 - **Twitch** `send_chat_message` **as the second action.** The Twitch triggers need a public HTTPS callback on port 443. Chat write also needs `user:write:chat` and only works in a channel where the connected user may speak. The 1 December demo should not depend on that.
 
-Gmail `add_label`, Spotify `save_to_library`, and both Twitch actions stay in the catalogue. They are not part of this hand-in. Drive, Notion, Slack, and Calendar stay on the Final milestone with their triggers. Timer stays trigger-only.
+Gmail `add_label`, Spotify `save_to_library`, and both Twitch actions stay in the catalogue. They are not part of this hand-in. Drive, Notion, Slack, and Calendar stay on the Final milestone with their triggers. Those twelve actions are [ADR 0009](0009-remaining-actions.md). Timer stays trigger-only.
 
 ## Consequences
 
