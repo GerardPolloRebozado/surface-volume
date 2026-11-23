@@ -13,11 +13,10 @@ const MAX_PAGES = 5;
 const LAST_CHECK_KEY = 'last_check';
 const SEEN_KEY = 'seen';
 
-type Inputs = { query: string };
 /** message id -> internalDate (epoch seconds) */
 type SeenMap = Record<string, number>;
 
-function readQuery(ctx: RunContext<Inputs>): string {
+function readQuery(ctx: RunContext): string {
   return String(ctx.inputs?.query ?? '').trim();
 }
 
@@ -41,7 +40,7 @@ export const newEmailMatchingSearch: PollingTrigger = {
   outputFields: emailOutputFields,
   sample: emailSample,
 
-  async poll(ctx: RunContext<Inputs>): Promise<TriggerEvent[]> {
+  async poll(ctx: RunContext): Promise<TriggerEvent[]> {
     const token = getAccessToken(ctx);
     const query = readQuery(ctx);
     const now = Math.floor(Date.now() / 1000);
@@ -81,7 +80,7 @@ export const newEmailMatchingSearch: PollingTrigger = {
     return events;
   },
 
-  async test(ctx: RunContext<Inputs>): Promise<TriggerEvent[]> {
+  async test(ctx: RunContext): Promise<TriggerEvent[]> {
     const token = getAccessToken(ctx);
     const ids = await listMessageIds(token, readQuery(ctx), 1, 3);
     const messages = await Promise.all(ids.map((id) => getMessage(token, id)));
