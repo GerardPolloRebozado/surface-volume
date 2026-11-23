@@ -7,9 +7,11 @@ import { WorkflowService } from './workflow.service';
 import { RunsService } from './runs.service';
 import { RunContextService } from './run-context';
 import { ExecutorService } from './executor.service';
+import { RunsController } from './runs.controller';
 
 @Module({
   imports: [QueueModule, UsersModule, ConnectionsModule],
+  controllers: [RunsController],
   providers: [
     ScheduleService,
     WorkflowService,
