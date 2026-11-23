@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { JOBS, QUEUE } from '../queue/queue.constants';
+import { pollJobId } from '../queue/job-ids';
 import { nextRunAt } from './next-run';
 
 interface ClaimedTrigger {
@@ -74,7 +75,7 @@ export class ScheduleService {
           dueAt: trigger.next_run_at.toISOString(),
         },
         opts: {
-          jobId: `poll:${trigger.id}:${new Date(trigger.next_run_at).getTime()}`,
+          jobId: pollJobId(trigger.id, trigger.next_run_at),
           priority: 1,
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },

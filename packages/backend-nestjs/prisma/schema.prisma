@@ -546,6 +546,7 @@ model RunStep {
   nodeType      String     @map("node_type")
   /// Execution order inside the run.
   seq           Int
+  iteration     Int        @default(0)
   status        StepStatus @default(pending)
   /// Inputs after {{ }} substitution, secrets redacted.
   inputs        Json?
@@ -565,7 +566,8 @@ model RunStep {
   aiInvocations AiInvocation[]
   reviewTasks   ReviewTask[]
 
-  @@unique([runId, nodeId])
+  @@unique([runId, nodeId, iteration])
+  @@index([status, startedAt])
   @@map("run_steps")
 }
 

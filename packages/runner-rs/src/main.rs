@@ -1,7 +1,11 @@
+mod client;
+
 use bullmq::options::{RedisConnectionOptions, WorkerOptions};
-use bullmq::{Job, Worker};
+use bullmq::{Error as BullmqError, Job, Worker};
+use client::InternalApi;
 use serde_json::json;
 use std::env;
+use std::sync::Arc;
 
 fn redis_options() -> RedisConnectionOptions {
     let mut opts = RedisConnectionOptions::default();
@@ -10,18 +14,32 @@ fn redis_options() -> RedisConnectionOptions {
 }
 
 async fn work() -> anyhow::Result<()> {
+    let api = Arc::new(InternalApi::from_env()?);
+
     let mut opts = WorkerOptions::default();
     opts.connection = redis_options();
     opts.concurrency = 4;
 
     let worker = Worker::with_options(
         "workflow",
-        |job: Job, _token| {
+        move |job: Job, _token| {
+            let api = api.clone();
             Box::pin(async move {
-                let data = job.data();
-                let trigger_id = data["triggerId"].as_str().unwrap_or("unknown");
-                println!("{} {} {}", job.id(), job.name(), trigger_id);
-                Ok(json!({ "ok": true }))
+                match job.name() {
+                    "run-step" => {
+                        let data = job.data();
+                        let step_id = data["stepId"].as_str().ok_or_else(|| {
+                            BullmqError::InvalidConfig("missing stepId".into())
+                        })?;
+                        let attempt = data["attempt"].as_u64().unwrap_or(1);
+                        let result = api
+                            .run_step(step_id, attempt)
+                            .await
+                            .map_err(|error| BullmqError::InvalidConfig(error.to_string()))?;
+                        Ok(result)
+                    }
+                    other => Ok(json!({ "skipped": other })),
+                }
             })
         },
         opts,

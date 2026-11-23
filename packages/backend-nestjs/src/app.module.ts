@@ -19,6 +19,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QueueModule } from './queue/queue.module';
 import { WorkflowsModule } from './workflow/workflows.module';
+import { InternalModule } from './internal/internal.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { WorkflowsModule } from './workflow/workflows.module';
     }),
     QueueModule,
     WorkflowsModule,
+    InternalModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],
