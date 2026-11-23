@@ -7,7 +7,10 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { TriggersService } from '../triggers/triggers.service';
+import {
+  TriggersService,
+  type PollSubmit,
+} from '../triggers/triggers.service';
 import { InternalGuard } from './internal.guard';
 import { StepRunnerService, type StepResultBody } from './step-runner.service';
 
@@ -40,14 +43,28 @@ export class InternalController {
     return result;
   }
 
-  @Post('triggers/:triggerId/poll')
-  async pollTrigger(
+  @Post('triggers/:triggerId/poll/claim')
+  async claimPoll(
     @Param('triggerId') triggerId: string,
     @Body() body: { dueAt?: string },
   ) {
-    const result = await this.triggers.poll(
+    const result = await this.triggers.claim(
       triggerId,
       body?.dueAt ?? new Date().toISOString(),
+    );
+    if ('reason' in result) throw new ConflictException(result);
+    return result;
+  }
+
+  @Post('triggers/:triggerId/poll/submit')
+  async submitPoll(
+    @Param('triggerId') triggerId: string,
+    @Body() body: PollSubmit & { dueAt?: string },
+  ) {
+    const result = await this.triggers.submit(
+      triggerId,
+      body?.dueAt ?? new Date().toISOString(),
+      body,
     );
     if ('reason' in result) throw new ConflictException(result);
     return result;

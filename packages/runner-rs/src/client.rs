@@ -68,13 +68,23 @@ impl InternalApi {
         Ok(result)
     }
 
-    pub async fn poll_trigger(&self, trigger_id: &str, due_at: &str) -> Result<Value> {
+    pub async fn claim_poll(&self, trigger_id: &str, due_at: &str) -> Result<Value> {
         let (_, body) = self
             .post(
-                format!("/internal/triggers/{}/poll", trigger_id),
+                format!("/internal/triggers/{}/poll/claim", trigger_id),
                 json!({ "dueAt": due_at }),
             )
             .await?;
         Ok(body)
+    }
+
+    pub async fn submit_poll(&self, trigger_id: &str, body: Value) -> Result<Value> {
+        let (_, result) = self
+            .post(
+                format!("/internal/triggers/{}/poll/submit", trigger_id),
+                body,
+            )
+            .await?;
+        Ok(result)
     }
 }

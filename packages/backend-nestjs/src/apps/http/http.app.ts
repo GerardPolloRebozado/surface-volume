@@ -1,4 +1,10 @@
-import type { ActionDefinition, AppDefinition } from '../../workflow';
+import type {
+  ActionDefinition,
+  AppDefinition,
+  PollingPlan,
+  PollingTrigger,
+  TriggerEvent,
+} from '../../workflow';
 import { planFromInputs } from '../../workflow/action-plan';
 
 export const httpRequest: ActionDefinition = {
@@ -16,10 +22,35 @@ export const httpRequest: ActionDefinition = {
   },
 };
 
+export const httpPoll: PollingTrigger = {
+  key: 'poll',
+  name: 'HTTP poll',
+  description: 'Calls an endpoint on the worker and turns the response into events.',
+  type: 'polling',
+  defaultIntervalSec: 60,
+  inputFields: [],
+  outputFields: [],
+  sample: {},
+
+  plan(ctx): PollingPlan {
+    return planFromInputs(ctx.inputs);
+  },
+
+  map(outputs): TriggerEvent[] {
+    const rows = Array.isArray(outputs.events)
+      ? (outputs.events as Record<string, unknown>[])
+      : [];
+    return rows.map((row) => ({
+      id: String(row.id ?? ''),
+      data: (row.data ?? row) as Record<string, unknown>,
+    }));
+  },
+};
+
 export const httpApp: AppDefinition = {
   id: 'http',
   name: 'HTTP',
   auth: { type: 'none' },
-  triggers: {},
+  triggers: { [httpPoll.key]: httpPoll },
   actions: { [httpRequest.key]: httpRequest },
 };

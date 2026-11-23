@@ -5,6 +5,8 @@ export interface PlanCall {
   headers?: Record<string, string>;
   body?: unknown;
   outputs?: Record<string, string>;
+  forEach?: string;
+  as?: string;
 }
 
 export interface ActionPlan {
@@ -27,6 +29,8 @@ export function planFromInputs(inputs: Record<string, unknown>): ActionPlan {
       headers: (call.headers ?? {}) as Record<string, string>,
       body: call.body,
       outputs: (call.outputs ?? {}) as Record<string, string>,
+      forEach: typeof call.forEach === 'string' ? call.forEach : undefined,
+      as: typeof call.as === 'string' ? call.as : undefined,
     };
   });
 

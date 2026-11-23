@@ -42,6 +42,30 @@ async fn run_step(api: &InternalApi, step_id: &str, attempt: u64) -> anyhow::Res
     api.report_step(step_id, attempt, outcome).await
 }
 
+async fn run_poll(api: &InternalApi, trigger_id: &str, due_at: &str) -> anyhow::Result<Value> {
+    let claim = api.claim_poll(trigger_id, due_at).await?;
+    if claim.get("reason").is_some() || claim.get("plan").is_none() {
+        return Ok(claim);
+    }
+
+    let plan: ActionPlan = serde_json::from_value(claim["plan"].clone())?;
+    let (outputs, error) = executor::execute_plan(api.http(), plan).await?;
+
+    let mut body = match error {
+        None => json!({ "status": "succeeded", "outputs": outputs }),
+        Some(error) => json!({
+            "status": "failed",
+            "outputs": outputs,
+            "errorKind": error.kind,
+            "errorMessage": error.message,
+            "retryAfterMs": error.retry_after_ms,
+        }),
+    };
+    body["dueAt"] = json!(due_at);
+
+    api.submit_poll(trigger_id, body).await
+}
+
 async fn work() -> anyhow::Result<()> {
     let api = Arc::new(InternalApi::from_env()?);
 
@@ -72,8 +96,7 @@ async fn work() -> anyhow::Result<()> {
                             BullmqError::InvalidConfig("missing triggerId".into())
                         })?;
                         let due_at = data["dueAt"].as_str().unwrap_or("");
-                        let result = api
-                            .poll_trigger(trigger_id, due_at)
+                        let result = run_poll(&api, trigger_id, due_at)
                             .await
                             .map_err(to_worker_error)?;
                         Ok(result)

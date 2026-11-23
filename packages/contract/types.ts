@@ -137,6 +137,8 @@ export interface PlanCall {
   headers?: Record<string, string>
   body?: unknown
   outputs?: Record<string, string>
+  forEach?: string
+  as?: string
 }
 
 export interface ActionPlan {
