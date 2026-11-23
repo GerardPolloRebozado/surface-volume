@@ -20,6 +20,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { QueueModule } from './queue/queue.module';
 import { WorkflowsModule } from './workflow/workflows.module';
 import { InternalModule } from './internal/internal.module';
+import { HooksModule } from './hooks/hooks.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { InternalModule } from './internal/internal.module';
     QueueModule,
     WorkflowsModule,
     InternalModule,
+    HooksModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],

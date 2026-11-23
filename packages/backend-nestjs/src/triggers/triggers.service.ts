@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { findTrigger } from '../apps';
+import { externalIdForEvent } from './event-id';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkflowQueue } from '../queue/workflow.queue';
 import { nextRunAt } from '../scheduler/next-run';
@@ -56,9 +57,6 @@ export class TriggersService {
       return { reason: 'not_found' };
     }
 
-    const workflow = await this.prisma.workflow.findUniqueOrThrow({
-      where: { id: trigger.workflowId },
-    });
     const version = await this.prisma.workflowVersion.findUniqueOrThrow({
       where: { id: trigger.versionId },
     });
@@ -94,17 +92,43 @@ export class TriggersService {
       return { events: 0, nextRunAt: next.toISOString() };
     }
 
+    const inserted = await this.ingestEvents(trigger, events, window);
+
+    const next = nextRunAt(trigger, new Date());
+    await this.prisma.workflowTrigger.update({
+      where: { id: triggerId },
+      data: {
+        nextRunAt: next,
+        lastCheckedAt: new Date(),
+        consecutiveFailures: 0,
+        lastError: null,
+        leaseUntil: null,
+        leaseOwner: null,
+      },
+    });
+    await this.queue.enqueuePoll(triggerId, next);
+
+    return { events: inserted, nextRunAt: next.toISOString() };
+  }
+
+  async ingestEvents(
+    trigger: { id: string; workflowId: string; versionId: string },
+    events: TriggerEvent[],
+    window: PlannerWindow,
+  ): Promise<number> {
+    const workflow = await this.prisma.workflow.findUniqueOrThrow({
+      where: { id: trigger.workflowId },
+    });
     const byExternalId = new Map<string, TriggerEvent>();
     let inserted = 0;
 
     for (const event of events) {
-      const externalId =
-        event.id ?? createHash('sha256').update(JSON.stringify(event.data)).digest('hex');
+      const externalId = externalIdForEvent(event);
       const rows = await this.prisma.$queryRaw<{ id: string }[]>`
         INSERT INTO trigger_events (id, trigger_id, external_id, payload, occurred_at)
         VALUES (
           ${randomUUID()}::uuid,
-          ${triggerId}::uuid,
+          ${trigger.id}::uuid,
           ${externalId},
           ${JSON.stringify(event.data)}::jsonb,
           COALESCE(${event.occurredAt ?? null}::timestamptz, NOW())
@@ -133,20 +157,6 @@ export class TriggersService {
       });
     }
 
-    const next = nextRunAt(trigger, new Date());
-    await this.prisma.workflowTrigger.update({
-      where: { id: triggerId },
-      data: {
-        nextRunAt: next,
-        lastCheckedAt: new Date(),
-        consecutiveFailures: 0,
-        lastError: null,
-        leaseUntil: null,
-        leaseOwner: null,
-      },
-    });
-    await this.queue.enqueuePoll(triggerId, next);
-
-    return { events: inserted, nextRunAt: next.toISOString() };
+    return inserted;
   }
 }
