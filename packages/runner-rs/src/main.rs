@@ -38,6 +38,18 @@ async fn work() -> anyhow::Result<()> {
                             .map_err(|error| BullmqError::InvalidConfig(error.to_string()))?;
                         Ok(result)
                     }
+                    "poll" => {
+                        let data = job.data();
+                        let trigger_id = data["triggerId"].as_str().ok_or_else(|| {
+                            BullmqError::InvalidConfig("missing triggerId".into())
+                        })?;
+                        let due_at = data["dueAt"].as_str().unwrap_or("");
+                        let result = api
+                            .poll_trigger(trigger_id, due_at)
+                            .await
+                            .map_err(|error| BullmqError::InvalidConfig(error.to_string()))?;
+                        Ok(result)
+                    }
                     other => Ok(json!({ "skipped": other })),
                 }
             })

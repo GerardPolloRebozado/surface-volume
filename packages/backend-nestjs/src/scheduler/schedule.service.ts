@@ -5,6 +5,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { JOBS, QUEUE } from '../queue/queue.constants';
 import { pollJobId } from '../queue/job-ids';
+import { WorkflowQueue } from '../queue/workflow.queue';
 import { nextRunAt } from './next-run';
 
 interface ClaimedTrigger {
@@ -19,6 +20,7 @@ export class ScheduleService {
   constructor(
     @InjectQueue(QUEUE) private readonly workflowQueue: Queue,
     private readonly prisma: PrismaService,
+    private readonly producer: WorkflowQueue,
   ) {}
 
   @Cron('* * * * *')
@@ -77,6 +79,7 @@ export class ScheduleService {
         opts: {
           jobId: pollJobId(trigger.id, trigger.next_run_at),
           priority: 1,
+          delay: Math.max(0, trigger.next_run_at.getTime() - Date.now()),
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
           attempts: 2,
@@ -92,6 +95,58 @@ export class ScheduleService {
       this.logger.error('Failed to poll due workflows', error);
     } finally {
       this.isPolling = false;
+    }
+  }
+
+  @Cron('*/30 * * * *')
+  async repair() {
+    try {
+      const now = new Date();
+      const due = await this.prisma.workflowTrigger.findMany({
+        where: { enabled: true, nextRunAt: { lte: now } },
+        take: 100,
+      });
+      for (const trigger of due) {
+        await this.producer.enqueuePoll(trigger.id, trigger.nextRunAt!);
+      }
+
+      const stale = await this.prisma.runStep.findMany({
+        where: {
+          status: 'running',
+          startedAt: { lt: new Date(now.getTime() - 300_000) },
+        },
+        take: 100,
+      });
+      for (const step of stale) {
+        await this.prisma.runStep.update({
+          where: { id: step.id },
+          data: {
+            status: 'pending',
+            errorKind: 'retryable',
+            errorMessage: 'step lease expired',
+          },
+        });
+        await this.producer.enqueueStep({
+          stepId: step.id,
+          attempt: step.attempts + 1,
+        });
+      }
+
+      const pending = await this.prisma.runStep.findMany({
+        where: {
+          status: 'pending',
+          run: { queuedAt: { lt: new Date(now.getTime() - 120_000) } },
+        },
+        take: 100,
+      });
+      for (const step of pending) {
+        await this.producer.enqueueStep({
+          stepId: step.id,
+          attempt: step.attempts + 1,
+        });
+      }
+    } catch (error) {
+      this.logger.error('Failed to repair queued work', error);
     }
   }
 }

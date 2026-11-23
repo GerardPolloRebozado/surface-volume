@@ -44,4 +44,29 @@ impl InternalApi {
 
         Ok(body)
     }
+
+    pub async fn poll_trigger(&self, trigger_id: &str, due_at: &str) -> Result<Value> {
+        let response = self
+            .http
+            .post(format!(
+                "{}/internal/triggers/{}/poll",
+                self.base_url, trigger_id
+            ))
+            .header("x-service-token", &self.token)
+            .json(&json!({ "dueAt": due_at }))
+            .send()
+            .await?;
+
+        let status = response.status();
+        let body: Value = response.json().await.unwrap_or(Value::Null);
+
+        if status == StatusCode::CONFLICT {
+            return Ok(body);
+        }
+        if !status.is_success() {
+            return Err(anyhow!("internal api returned {}: {}", status, body));
+        }
+
+        Ok(body)
+    }
 }
