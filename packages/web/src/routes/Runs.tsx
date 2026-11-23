@@ -4,15 +4,13 @@ import { Topbar } from '@/components/Topbar'
 import { Icon } from '@/components/Icon'
 import { Page } from '@/components/Page'
 import { Pill } from '@/components/Pill'
-import { ServiceMark } from '@/components/ServiceMark'
 import { Stat } from '@/components/Stat'
-import { ACTIVITY, STATS } from '@/data/mock'
-import type { WorkflowRun } from '@/data/contract'
 import { duration, number, runDuration, runTime } from '@/lib/format'
+import type { RunListItem } from '@/lib/runs'
 
 type Filter = 'all' | 'failed'
 
-function runTone(status: WorkflowRun['status']): { label: string; tone: 'ok' | 'bad' | 'pending'; icon: 'check' | 'x' | 'clock' } {
+function runTone(status: RunListItem['status']): { label: string; tone: 'ok' | 'bad' | 'pending'; icon: 'check' | 'x' | 'clock' } {
   switch (status) {
     case 'succeeded':
       return { label: 'Succeeded', tone: 'ok', icon: 'check' }
@@ -24,20 +22,31 @@ function runTone(status: WorkflowRun['status']): { label: string; tone: 'ok' | '
   }
 }
 
-export function RunsRoute() {
+export function RunsRoute({ runs }: { runs: RunListItem[] }) {
   const [filter, setFilter] = useState<Filter>('all')
 
   const visible = useMemo(
-    () => (filter === 'failed' ? ACTIVITY.filter((a) => a.run.status === 'failed' || a.run.status === 'cancelled') : ACTIVITY),
-    [filter],
+    () => (filter === 'failed' ? runs.filter((run) => run.status === 'failed' || run.status === 'cancelled') : runs),
+    [filter, runs],
   )
 
-  const avgMs = useMemo(() => {
-    const finished = ACTIVITY.map((a) => runDuration(a.run)).filter((v): v is number => v !== null)
-    return finished.length ? finished.reduce((a, b) => a + b, 0) / finished.length : 0
-  }, [])
+  const weekRuns = useMemo(() => {
+    const limit = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return runs.filter((run) => Date.parse(run.queuedAt) >= limit).length
+  }, [runs])
 
-  const failedCount = ACTIVITY.filter((a) => a.run.status === 'failed' || a.run.status === 'cancelled').length
+  const stats = useMemo(() => {
+    const finished = runs.filter((run) => run.finishedAt !== null)
+    const succeeded = finished.filter((run) => run.status === 'succeeded').length
+    const times = finished
+      .map((run) => runDuration(run))
+      .filter((value): value is number => value !== null)
+    return {
+      rate: finished.length ? Math.round((succeeded / finished.length) * 100) : 0,
+      failed: runs.filter((run) => run.status === 'failed' || run.status === 'cancelled').length,
+      average: times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0,
+    }
+  }, [runs])
 
   return (
     <div className="flex h-full flex-col">
@@ -47,10 +56,10 @@ export function RunsRoute() {
         <Page>
           <div className="card p-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat value={number(STATS.weekRuns)} label="runs this week" />
-              <Stat value={`${STATS.successRate}%`} label="success rate" />
-              <Stat value={String(failedCount)} label="failed" tone="bad" />
-              <Stat value={duration(avgMs)} label="average run" />
+              <Stat value={number(weekRuns)} label="runs this week" />
+              <Stat value={`${stats.rate}%`} label="success rate" />
+              <Stat value={String(stats.failed)} label="failed" tone="bad" />
+              <Stat value={duration(stats.average)} label="average run" />
             </div>
           </div>
 
@@ -73,22 +82,30 @@ export function RunsRoute() {
           <div className="card overflow-hidden p-0">
             {visible.length === 0 ? (
               <div className="px-6 py-10 text-center">
-                <div className="text-[13px] font-semibold">No failed runs</div>
-                <div className="mt-1 text-[12px] text-mute">Every run in the last seven days succeeded.</div>
+                <div className="text-[13px] font-semibold">
+                  {filter === 'failed' ? 'No failed runs' : 'No runs yet'}
+                </div>
+                <div className="mt-1 text-[12px] text-mute">
+                  {filter === 'failed'
+                    ? 'Every run in the last seven days succeeded.'
+                    : 'Run a workflow to see it here.'}
+                </div>
               </div>
             ) : (
-              visible.map((entry, index) => {
-                const outcome = runTone(entry.run.status)
-                const took = runDuration(entry.run)
+              visible.map((run, index) => {
+                const outcome = runTone(run.status)
+                const took = runDuration(run)
                 return (
-                  <div key={entry.run.id}>
+                  <div key={run.id}>
                     {index > 0 ? <div className="h-px bg-line" /> : null}
                     <div className="flex items-center gap-3 px-4 py-3">
-                      <ServiceMark id={entry.appId} size={24} />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-soft">
+                        <Icon name={outcome.icon} size={14} />
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium">{entry.workflowName}</div>
+                        <div className="text-[13px] font-medium">{run.workflow.name}</div>
                         <div className="text-[11.5px] text-mute">
-                          {runTime(entry.run)}
+                          {runTime(run)}
                           {took === null ? '' : ` · ${duration(took)}`}
                         </div>
                       </div>

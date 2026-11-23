@@ -1,7 +1,12 @@
 ---
 import App from '../layouts/App.astro'
 import { RunsRoute } from '../routes/Runs'
+import { ACCESS_COOKIE, BACKEND_URL } from '../lib/auth'
+import { fetchRuns } from '../lib/runs'
+
+const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
+const runs = await fetchRuns(token, BACKEND_URL)
 ---
 <App title="Runs · area" active="runs">
-  <RunsRoute client:load />
+  <RunsRoute client:load runs={runs} />
 </App>
