@@ -15,9 +15,12 @@ import {
   SmtpTransport,
 } from '@nestjs/mail';
 import { join } from 'node:path';
+import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -46,6 +49,12 @@ import { join } from 'node:path';
     }),
     UsersModule,
     AuthModule,
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+      },
+    }),
   ],
   controllers: [AppController, PingController],
   providers: [AppService],
