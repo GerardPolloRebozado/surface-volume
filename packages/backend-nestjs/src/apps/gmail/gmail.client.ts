@@ -74,13 +74,19 @@ async function gmailGet<T>(token: string, path: string): Promise<T> {
   throw new ActionError(message, 'fatal');
 }
 
+export interface MessageIdPage {
+  ids: string[];
+  /** false when `maxPages` was reached and more results exist. */
+  complete: boolean;
+}
+
 /** Lists message IDs matching `q`, newest first, following at most `maxPages` pages. */
-export async function listMessageIds(
+export async function listAllMessageIds(
   token: string,
   q: string,
   maxPages = 5,
   pageSize = PAGE_SIZE,
-): Promise<string[]> {
+): Promise<MessageIdPage> {
   const ids: string[] = [];
   let pageToken: string | undefined;
   for (let page = 0; page < maxPages; page++) {
@@ -89,9 +95,19 @@ export async function listMessageIds(
     const body = await gmailGet<ListResponse>(token, `/messages?${params}`);
     for (const m of body.messages ?? []) ids.push(m.id);
     pageToken = body.nextPageToken;
-    if (!pageToken) break;
+    if (!pageToken) return { ids, complete: true };
   }
-  return ids;
+  return { ids, complete: false };
+}
+
+/** Like {@link listAllMessageIds} but returns only the IDs. */
+export async function listMessageIds(
+  token: string,
+  q: string,
+  maxPages = 5,
+  pageSize = PAGE_SIZE,
+): Promise<string[]> {
+  return (await listAllMessageIds(token, q, maxPages, pageSize)).ids;
 }
 
 export function getMessage(token: string, id: string): Promise<GmailMessage> {

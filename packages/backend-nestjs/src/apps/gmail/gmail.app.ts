@@ -1,5 +1,6 @@
 import type { AppDefinition } from '../../workflow';
 import { newEmailMatchingSearch } from './triggers/new-email-matching-search.trigger';
+import { newStarredEmail } from './triggers/new-starred-email.trigger';
 
 export const gmailApp: AppDefinition = {
   id: 'gmail',
@@ -13,6 +14,7 @@ export const gmailApp: AppDefinition = {
   },
   triggers: {
     [newEmailMatchingSearch.key]: newEmailMatchingSearch,
+    [newStarredEmail.key]: newStarredEmail,
   },
   actions: {},
 };
