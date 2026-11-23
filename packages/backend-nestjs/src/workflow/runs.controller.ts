@@ -6,6 +6,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class RunsController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Get('runs')
+  async all(@CurrentUser() user: { id: string }) {
+    return this.prisma.workflowRun.findMany({
+      where: { userId: user.id },
+      include: { workflow: { select: { name: true } } },
+      orderBy: { queuedAt: 'desc' },
+      take: 100,
+    });
+  }
+
   @Get('workflows/:id/runs')
   async list(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     return this.prisma.workflowRun.findMany({

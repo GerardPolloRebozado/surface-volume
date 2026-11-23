@@ -63,7 +63,7 @@ cat > "$OUTPUT_DIR_TS/package.json" << 'PACKAGE_EOF'
   "type": "module",
   "main": "index.ts",
   "dependencies": {
-    "axios": "1.9.0",
+    "axios": "1.9.0"
   }
 }
 PACKAGE_EOF
