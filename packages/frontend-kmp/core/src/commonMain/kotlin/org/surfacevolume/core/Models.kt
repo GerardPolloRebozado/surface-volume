@@ -274,11 +274,35 @@ data class ConnectionResource(
 )
 
 @Serializable
+data class CatalogueField(
+    val key: String,
+    val label: String,
+    val type: String,
+    val required: Boolean = false,
+    val secret: Boolean = false,
+    val helpText: String? = null,
+    val default: JsonElement? = null,
+    val choices: Map<String, String> = emptyMap(),
+    val list: Boolean = false,
+)
+
+@Serializable
+data class CatalogueAuth(
+    val type: String,
+    val fields: List<CatalogueField> = emptyList(),
+)
+
+@Serializable
 data class AppCatalogueEntry(
     val id: String,
     val name: String,
+    val auth: CatalogueAuth = CatalogueAuth("none"),
     val triggers: Map<String, String> = emptyMap(),
     val actions: Map<String, String> = emptyMap(),
+    val triggerFields: Map<String, List<CatalogueField>> = emptyMap(),
+    val actionFields: Map<String, List<CatalogueField>> = emptyMap(),
+    val triggerOutputs: Map<String, List<CatalogueField>> = emptyMap(),
+    val actionOutputs: Map<String, List<CatalogueField>> = emptyMap(),
 )
 
 @Serializable

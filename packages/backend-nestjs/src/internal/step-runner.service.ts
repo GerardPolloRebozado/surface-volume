@@ -12,6 +12,7 @@ import {
 } from '../workflow/planner';
 import { RunContextService } from '../workflow/run-context';
 import { RunsService } from '../workflow/runs.service';
+import { ConnectionsService } from '../connections/connections.service';
 
 export type RunOutcome =
   | {
@@ -57,6 +58,7 @@ export class StepRunnerService {
     private readonly executor: ExecutorService,
     private readonly queue: WorkflowQueue,
     private readonly runs: RunsService,
+    private readonly connections: ConnectionsService,
   ) {}
 
   async claim(stepId: string, attempt: number): Promise<ClaimOutcome> {
@@ -94,6 +96,7 @@ export class StepRunnerService {
     const context = await this.contexts.build({
       workflowId: step.run.workflowId,
       nodeId: step.nodeId,
+      runId: step.runId,
       connectionId: node && 'credentialId' in node ? node.credentialId : undefined,
       inputs,
     });
@@ -192,6 +195,18 @@ export class StepRunnerService {
     const { step, node, window, outputsByNode } = prepared;
     if (result.status === 'planned') return { reason: 'done' };
     const inputs = this.resolveInputs(prepared);
+
+    const credentialId = node && 'credentialId' in node ? node.credentialId : undefined;
+    if (
+      result.status === 'failed' &&
+      result.errorKind === 'auth_expired' &&
+      credentialId
+    ) {
+      await this.connections.markCredentialRejected(
+        credentialId,
+        result.errorMessage ?? 'The provider rejected the credentials',
+      );
+    }
 
     const onError = node && 'onError' in node ? node.onError : undefined;
     const strategy = result.status === 'failed' ? (onError?.strategy ?? 'stop') : 'stop';

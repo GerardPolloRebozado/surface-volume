@@ -5,8 +5,9 @@ import type {
 } from '../workflow';
 import { gmailApp } from './gmail/gmail.app';
 import { httpApp } from './http/http.app';
+import { mastodonApp } from './mastodon/mastodon.app';
 
-export const apps: AppDefinition[] = [gmailApp, httpApp];
+export const apps: AppDefinition[] = [gmailApp, httpApp, mastodonApp];
 
 export function findApp(appId: string): AppDefinition | undefined {
   return apps.find((app) => app.id === appId);

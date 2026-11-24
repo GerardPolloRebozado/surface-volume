@@ -14,6 +14,7 @@ export interface InputField {
     | 'json'
     | 'file';
   required?: boolean;
+  secret?: boolean;
   helpText?: string;
   default?: unknown;
   list?: boolean;

@@ -103,7 +103,9 @@ export function RunsRoute({ runs }: { runs: RunListItem[] }) {
                         <Icon name={outcome.icon} size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium">{run.workflow.name}</div>
+                        <a href={`/runs/${run.id}`} className="text-[13px] font-medium hover:underline">
+                          {run.workflow.name}
+                        </a>
                         <div className="text-[11.5px] text-mute">
                           {runTime(run)}
                           {took === null ? '' : ` · ${duration(took)}`}

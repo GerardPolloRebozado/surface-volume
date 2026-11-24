@@ -92,11 +92,33 @@ export interface Account {
   plan: string
 }
 
+export interface CatalogueField {
+  key: string
+  label: string
+  type: 'string' | 'text' | 'number' | 'boolean' | 'select' | 'datetime' | 'json' | 'file'
+  required?: boolean
+  secret?: boolean
+  helpText?: string
+  default?: unknown
+  choices?: { value: string; label: string }[]
+  list?: boolean
+}
+
+export interface CatalogueAuth {
+  type: 'none' | 'api_key' | 'basic' | 'oauth2' | 'custom'
+  fields: CatalogueField[]
+}
+
 export interface AppCatalogueEntry {
   id: string
   name: string
+  auth: CatalogueAuth
   triggers: Record<string, string>
   actions: Record<string, string>
+  triggerFields: Record<string, CatalogueField[]>
+  actionFields: Record<string, CatalogueField[]>
+  triggerOutputs: Record<string, CatalogueField[]>
+  actionOutputs: Record<string, CatalogueField[]>
 }
 
 export type StepStatus =

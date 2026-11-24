@@ -1,4 +1,4 @@
-import type { AuthDefinition } from './auth.types';
+import type { AuthDefinition, VerifiedCredential } from './auth.types';
 import type { TriggerDefinition } from './triggers.types';
 import type { ActionDefinition } from './actions.types';
 
@@ -8,6 +8,7 @@ export interface AppDefinition {
   name: string;
   logoUrl?: string;
   auth: AuthDefinition;
+  verify?: (credentials: Record<string, unknown>) => Promise<VerifiedCredential>;
   triggers: Record<string, TriggerDefinition>;
   actions: Record<string, ActionDefinition>;
 }

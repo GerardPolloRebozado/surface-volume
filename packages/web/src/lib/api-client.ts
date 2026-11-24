@@ -1,7 +1,10 @@
 import {
   AppApi,
-  PingApi,
+  AppsApi,
   AuthApi,
+  ConnectionsApi,
+  PingApi,
+  WorkflowsApi,
   Configuration,
 } from '@api-client/index'
 
@@ -23,6 +26,9 @@ export const apiConfiguration = new Configuration({
  */
 export const api = {
   app: new AppApi(apiConfiguration),
-  ping: new PingApi(apiConfiguration),
+  apps: new AppsApi(apiConfiguration),
   auth: new AuthApi(apiConfiguration),
+  connections: new ConnectionsApi(apiConfiguration),
+  ping: new PingApi(apiConfiguration),
+  workflows: new WorkflowsApi(apiConfiguration),
 }

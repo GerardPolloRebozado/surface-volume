@@ -8,14 +8,17 @@ import { RunsService } from './runs.service';
 import { RunContextService } from './run-context';
 import { ExecutorService } from './executor.service';
 import { RunsController } from './runs.controller';
+import { WorkflowsController } from './workflows.controller';
+import { WorkflowCrudService } from './workflow-crud.service';
 
 @Module({
   imports: [QueueModule, UsersModule, ConnectionsModule],
-  controllers: [RunsController],
+  controllers: [RunsController, WorkflowsController],
   providers: [
     ScheduleService,
     WorkflowService,
     RunsService,
+    WorkflowCrudService,
     RunContextService,
     ExecutorService,
   ],

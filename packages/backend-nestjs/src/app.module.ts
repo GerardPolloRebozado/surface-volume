@@ -19,12 +19,16 @@ import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QueueModule } from './queue/queue.module';
 import { WorkflowsModule } from './workflow/workflows.module';
+import { AppsModule } from './apps/apps.module';
+import { ConnectionsModule } from './connections/connections.module';
 import { InternalModule } from './internal/internal.module';
 import { HooksModule } from './hooks/hooks.module';
 
+const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()];
+
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
+    ...crons,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -60,6 +64,8 @@ import { HooksModule } from './hooks/hooks.module';
       },
     }),
     QueueModule,
+    AppsModule,
+    ConnectionsModule,
     WorkflowsModule,
     InternalModule,
     HooksModule,
