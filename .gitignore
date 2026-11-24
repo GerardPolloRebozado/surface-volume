@@ -33,6 +33,7 @@ coverage/
 packages/backend-nestjs/prisma7.config.js
 packages/backend-nestjs/prisma7.config.js.map
 packages/backend-nestjs/prisma7.config.d.ts
+packages/backend-nestjs/prisma7.config.ts
 
 # ---------- Node / NestJS (pnpm) ----------
 node_modules/
