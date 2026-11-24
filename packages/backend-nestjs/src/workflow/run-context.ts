@@ -9,6 +9,7 @@ import { createStore } from './store-adapter';
 interface BuildContextInput {
   workflowId: string;
   nodeId: string;
+  runId?: string;
   connectionId?: string | null;
   inputs: Record<string, unknown>;
 }
@@ -35,6 +36,8 @@ export class RunContextService {
 
     return {
       inputs: input.inputs,
+      runId: input.runId,
+      nodeId: input.nodeId,
       credential,
       store: createStore(this.prisma, input.workflowId, input.nodeId),
     };

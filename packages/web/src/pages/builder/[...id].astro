@@ -1,9 +1,26 @@
 ---
 import App from '../../layouts/App.astro'
 import { BuilderRoute } from '../../routes/Builder'
+import { ACCESS_COOKIE, BACKEND_URL } from '../../lib/auth'
+import { fetchApps, fetchConnections } from '../../lib/services'
+import { fetchWorkflow } from '../../lib/workflows'
 
-const workflowId = Astro.params.id
+const workflowId = Astro.params.id ?? ''
+const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
+const [workflow, apps, connections] = await Promise.all([
+  fetchWorkflow(token, BACKEND_URL, workflowId).catch(() => null),
+  fetchApps(token, BACKEND_URL).catch(() => []),
+  fetchConnections(token, BACKEND_URL).catch(() => []),
+])
 ---
 <App title="Builder · area" active="builder">
-  <BuilderRoute client:only="react" workflowId={workflowId} />
+  <BuilderRoute
+    client:load
+    workflowId={workflowId}
+    workflow={workflow}
+    apps={apps}
+    connections={connections}
+    token={token}
+    backend={BACKEND_URL}
+  />
 </App>

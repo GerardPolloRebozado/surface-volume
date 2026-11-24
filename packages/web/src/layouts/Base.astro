@@ -9,6 +9,14 @@ const { title = 'area · the workflow is the page' } = Astro.props
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <script is:inline>
+      const stored = localStorage.getItem('area.theme') || 'system'
+      const resolved = stored === 'system'
+        ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : stored
+      document.documentElement.dataset.theme = resolved
+      document.documentElement.style.colorScheme = resolved
+    </script>
     <title>{title}</title>
   </head>
   <body class="bg-win text-ink">

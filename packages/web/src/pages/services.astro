@@ -1,7 +1,15 @@
 ---
 import App from '../layouts/App.astro'
 import { ServicesRoute } from '../routes/Services'
+import { ACCESS_COOKIE, BACKEND_URL } from '../lib/auth'
+import { fetchApps, fetchConnections } from '../lib/services'
+
+const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
+const [apps, connections] = await Promise.all([
+  fetchApps(token, BACKEND_URL).catch(() => []),
+  fetchConnections(token, BACKEND_URL).catch(() => []),
+])
 ---
 <App title="Services · area" active="services">
-  <ServicesRoute client:load />
+  <ServicesRoute client:load apps={apps} connections={connections} token={token} backend={BACKEND_URL} />
 </App>

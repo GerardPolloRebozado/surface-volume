@@ -10,6 +10,8 @@ export interface KeyValueStore {
 /** Everything a trigger/action gets when it runs. */
 export interface RunContext<TInputs = Record<string, any>> {
   inputs: TInputs;
+  runId?: string;
+  nodeId?: string;
   credential?: AppCredential;
   store: KeyValueStore;
 }

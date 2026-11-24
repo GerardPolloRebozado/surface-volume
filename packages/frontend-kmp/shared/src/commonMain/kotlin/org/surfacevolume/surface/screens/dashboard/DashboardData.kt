@@ -1,7 +1,14 @@
 package org.surfacevolume.surface.screens.dashboard
 
 import androidx.compose.ui.graphics.Color
+import kotlin.time.Clock
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.surfacevolume.core.AppCatalogueEntry
+import org.surfacevolume.core.ConnectionResource
+import org.surfacevolume.surface.ApiWorkflowListItem
+import org.surfacevolume.core.WorkflowRun
 import org.surfacevolume.core.ConnectionStatus
 import org.surfacevolume.core.DemoData
 import org.surfacevolume.core.RunStatus
@@ -13,21 +20,28 @@ import org.surfacevolume.core.runDurationMillis
 import org.surfacevolume.surface.components.AppIcon
 import org.surfacevolume.surface.components.PillTone
 
-enum class Service(val appId: String, val label: String, val icon: AppIcon, val tint: Color) {
-    Gmail("gmail", "HoloNet Mail", AppIcon.Mail, Color(0xFFB3261E)),
-    Drive("drive", "Death Star Plans Vault", AppIcon.Folder, Color(0xFF17764A)),
-    Slack("slack", "Rebel Comms", AppIcon.Chat, Color(0xFF6A3D9A)),
-    Notion("notion", "Jedi Archives", AppIcon.Page, Color(0xFF3A3A40)),
-    Calendar("calendar", "Imperial Schedule", AppIcon.Calendar, Color(0xFF1B6FC4)),
-    GitHub("github", "Droid Forge", AppIcon.Code, Color(0xFF43434A)),
-    Linear("linear", "Order Tracker", AppIcon.Layers, Color(0xFF6150A8)),
-    Stripe("stripe", "Galactic Credits", AppIcon.Layers, Color(0xFF4A3F8F)),
-    Webhook("webhook", "Hypercomms Relay", AppIcon.Code, Color(0xFF8A5A00)),
-    Discord("discord", "Cantina Chat", AppIcon.Chat, Color(0xFF4756A8)),
-    ;
-
+data class Service(val appId: String, val label: String, val icon: AppIcon, val tint: Color) {
     companion object {
-        fun of(appId: String): Service? = entries.firstOrNull { it.appId == appId }
+        val Gmail = Service("gmail", "HoloNet Mail", AppIcon.Mail, Color(0xFFB3261E))
+        val Drive = Service("drive", "Death Star Plans Vault", AppIcon.Folder, Color(0xFF17764A))
+        val Slack = Service("slack", "Rebel Comms", AppIcon.Chat, Color(0xFF6A3D9A))
+        val Notion = Service("notion", "Jedi Archives", AppIcon.Page, Color(0xFF3A3A40))
+        val Calendar = Service("calendar", "Imperial Schedule", AppIcon.Calendar, Color(0xFF1B6FC4))
+        val GitHub = Service("github", "Droid Forge", AppIcon.Code, Color(0xFF43434A))
+        val Linear = Service("linear", "Order Tracker", AppIcon.Layers, Color(0xFF6150A8))
+        val Stripe = Service("stripe", "Galactic Credits", AppIcon.Layers, Color(0xFF4A3F8F))
+        val Webhook = Service("webhook", "Hypercomms Relay", AppIcon.Code, Color(0xFF8A5A00))
+        val Discord = Service("discord", "Cantina Chat", AppIcon.Chat, Color(0xFF4756A8))
+        val Mastodon = Service("mastodon", "Mastodon", AppIcon.Chat, Color(0xFF6364FF))
+
+        private val known = listOf(
+            Gmail, Drive, Slack, Notion, Calendar, GitHub, Linear, Stripe, Webhook, Discord, Mastodon,
+        ).associateBy { it.appId }
+
+        fun of(appId: String): Service? = known[appId]
+
+        fun from(appId: String, label: String? = null): Service =
+            known[appId] ?: Service(appId, label ?: appId, AppIcon.Bolt, Color(0xFF5A5A63))
     }
 }
 
@@ -69,9 +83,11 @@ data class Run(
 )
 
 data class ServiceConnection(
+    val id: String = "",
     val service: Service,
     val account: String,
     val connected: Boolean,
+    val needsAttention: Boolean = false,
 )
 
 data class Template(
@@ -147,3 +163,56 @@ val DemoTemplates: List<Template> = listOf(
 )
 
 val DemoPerDay: List<Int> = DemoData.stats.runsPerDay
+
+fun List<ApiWorkflowListItem>.toRows(apps: List<AppCatalogueEntry>): List<Workflow> {
+    val now = Clock.System.now().toString()
+    val catalogue = apps.associateBy { it.id }
+    return map { item ->
+        val resource = item.workflow
+        Workflow(
+            id = resource.id,
+            name = resource.name,
+            intent = resource.description.orEmpty(),
+            trigger = resource.trigger.field("appId").let { appId ->
+                val key = resource.trigger.field("triggerKey")
+                catalogue[appId]?.triggers?.get(key) ?: key.replace('_', ' ')
+            },
+            services = item.services.map { Service.from(it) },
+            steps = 1 + resource.nodes.size,
+            enabled = resource.status == "on",
+            draft = resource.status == "draft",
+            needsAttention = resource.status == "error",
+            lastRun = item.lastRun?.let { run -> relativeTime(run.finishedAt ?: run.queuedAt, now) },
+            lastRunOk = item.lastRun?.status != RunStatus.FAILED,
+        )
+    }
+}
+
+fun List<WorkflowRun>.toRows(
+    workflowNames: Map<String, String>,
+    workflowApps: Map<String, String>,
+): List<Run> {
+    val now = Clock.System.now().toString()
+    return map { run ->
+        Run(
+            workflow = workflowNames[run.workflowId] ?: "Workflow",
+            service = workflowApps[run.workflowId]?.let { Service.from(it) } ?: Service.Webhook,
+            whenLabel = relativeTime(run.finishedAt ?: run.queuedAt, now),
+            duration = formatDuration(runDurationMillis(run)),
+            ok = run.status != RunStatus.FAILED,
+        )
+    }
+}
+
+fun List<ConnectionResource>.toRows(): List<ServiceConnection> = map { connection ->
+    ServiceConnection(
+        id = connection.id,
+        service = Service.from(connection.appId, connection.appName),
+        account = connection.account ?: connection.appName,
+        connected = connection.status == ConnectionStatus.ACTIVE,
+        needsAttention = connection.status == ConnectionStatus.ERROR || connection.status == ConnectionStatus.EXPIRED,
+    )
+}
+
+internal fun JsonElement?.field(name: String): String =
+    (this as? JsonObject)?.get(name)?.jsonPrimitive?.content.orEmpty()

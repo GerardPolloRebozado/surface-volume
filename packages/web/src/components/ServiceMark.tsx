@@ -13,6 +13,7 @@ const SERVICE_ICON: Record<string, IconName> = {
   stripe: 'card',
   webhook: 'code',
   discord: 'chat',
+  mastodon: 'chat',
 }
 
 const SERVICE_COLOR: Record<string, string> = {
@@ -26,6 +27,7 @@ const SERVICE_COLOR: Record<string, string> = {
   stripe: '#4a3f8f',
   webhook: '#8a5a00',
   discord: '#4756a8',
+  mastodon: '#6364ff',
 }
 
 export function ServiceMark({ id, size = 20 }: { id: string; size?: number }) {

@@ -25,7 +25,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +37,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.surfacevolume.core.AppCatalogueEntry
+import org.surfacevolume.core.ConnectionResource
+import org.surfacevolume.core.WorkflowRun
+import org.surfacevolume.surface.ApiWorkflowListItem
 import org.surfacevolume.surface.AuthSession
+import org.surfacevolume.surface.LocalApiConfig
+import org.surfacevolume.surface.MobileApi
+import kotlinx.coroutines.launch
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.AppBar
 import org.surfacevolume.surface.components.AppIcon
@@ -71,26 +80,60 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(initialTab) }
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(WorkflowFilter.All) }
-    var building by remember { mutableStateOf(false) }
-    val workflows = remember { mutableStateListOf<Workflow>() }
-    val runs = remember { mutableStateListOf<Run>() }
+    var building by remember { mutableStateOf<String?>(null) }
+    val api = LocalApiConfig.current
+    val scope = rememberCoroutineScope()
+    var apps by remember { mutableStateOf<List<AppCatalogueEntry>>(emptyList()) }
+    val connections = remember { mutableStateListOf<ConnectionResource>() }
+    val workflowItems = remember { mutableStateListOf<ApiWorkflowListItem>() }
+    val runItems = remember { mutableStateListOf<WorkflowRun>() }
+    var loadError by remember { mutableStateOf<String?>(null) }
 
-    fun toggle(id: String, enabled: Boolean) {
-        val index = workflows.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            val workflow = workflows[index]
-            workflows[index] = workflow.copy(
-                enabled = enabled,
-                draft = if (enabled) false else workflow.draft,
-                needsAttention = false,
-            )
+    fun refresh() {
+        scope.launch {
+            try {
+                val loaded = MobileApi.apps(api)
+                apps = loaded
+                connections.clear()
+                connections.addAll(MobileApi.connections(api))
+                workflowItems.clear()
+                workflowItems.addAll(MobileApi.workflows(api))
+                runItems.clear()
+                runItems.addAll(MobileApi.runs(api))
+                loadError = null
+            } catch (error: Exception) {
+                loadError = error.message ?: "Could not load data"
+            }
         }
     }
 
-    if (building) {
+    LaunchedEffect(Unit) { refresh() }
+
+    val workflows = workflowItems.toList().toRows(apps)
+    val runs = runItems.toList().toRows(
+        workflowItems.associate { it.workflow.id to it.workflow.name },
+        workflowItems.associate { it.workflow.id to it.workflow.trigger.field("appId") },
+    )
+    val serviceConnections = connections.toList().toRows()
+
+    fun toggle(id: String, enabled: Boolean) {
+        scope.launch {
+            try {
+                if (enabled) MobileApi.enableWorkflow(api, id) else MobileApi.disableWorkflow(api, id)
+                refresh()
+            } catch (error: Exception) {
+                loadError = error.message
+            }
+        }
+    }
+
+    if (building != null) {
         BuilderScreen(
-            onBack = { building = false },
-            onSave = { building = false },
+            workflowId = building,
+            apps = apps,
+            connections = connections.toList(),
+            onBack = { building = null },
+            onSaved = { building = null; refresh() },
         )
         return
     }
@@ -140,12 +183,64 @@ fun DashboardScreen(
                     filter = filter,
                     onFilterChange = { filter = it },
                     onToggle = ::toggle,
-                    onRun = {},
-                    onCreate = { building = true },
+                    onRun = { workflow ->
+                        scope.launch {
+                            try {
+                                MobileApi.runWorkflow(api, workflow.id)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onCreate = {
+                        scope.launch {
+                            try {
+                                building = MobileApi.createWorkflow(api, "Untitled workflow").id
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
                     onUseTemplate = {},
                 )
                 DashboardTab.Runs -> RunsPage(runs = runs)
-                DashboardTab.Services -> ServicesPage()
+                DashboardTab.Services -> ServicesPage(
+                    apps = apps,
+                    connections = serviceConnections,
+                    error = loadError,
+                    onConnect = { appId, credentials ->
+                        scope.launch {
+                            try {
+                                MobileApi.connect(api, appId, credentials)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onDisconnect = { id ->
+                        scope.launch {
+                            try {
+                                MobileApi.disconnect(api, id)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onTest = { id ->
+                        scope.launch {
+                            try {
+                                val result = MobileApi.testConnection(api, id)
+                                loadError = if (result.ok) null else result.message
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                )
                 DashboardTab.Templates -> TemplatesPage(onUse = {})
                 DashboardTab.Settings -> SettingsPage(
                     name = name,
