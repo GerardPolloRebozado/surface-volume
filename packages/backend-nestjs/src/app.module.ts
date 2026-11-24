@@ -22,11 +22,9 @@ import { WorkflowsModule } from './workflow/workflows.module';
 import { InternalModule } from './internal/internal.module';
 import { HooksModule } from './hooks/hooks.module';
 
-const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()];
-
 @Module({
   imports: [
-    ...crons,
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

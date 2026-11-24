@@ -16,32 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: surface_volume
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/surface_volume?schema=public
-      DISABLE_CRONS: "1"
-      INTERNAL_SERVICE_TOKEN: ci-token
-      JWT_SECRET: ci-secret-at-least-32-bytes-long-for-jwt-signing
-      APP_URL: http://localhost:8080
-      REDIS_HOST: localhost
-      REDIS_PORT: "6379"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -69,29 +43,29 @@ jobs:
           cd packages/backend-nestjs
           pnpm prisma generate
 
-      - name: Apply migrations
-        run: |
-          cd packages/backend-nestjs
-          pnpm prisma migrate deploy
-
       - name: Build NestJS backend
         run: |
           cd packages/backend-nestjs
           pnpm run build
 
       - name: Generate OpenAPI JSON
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd packages/backend-nestjs
-          pnpm run start:prod &
+          # Start NestJS in background to serve OpenAPI spec
+          pnpm run start:dev &
           BACKEND_PID=$!
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080/api-json -o openapi.json; then break; fi
-            sleep 1
-          done
+          sleep 15
+
+          # Fetch OpenAPI JSON from running server
+          curl -s http://localhost:8080/api-json > packages/backend-nestjs/openapi.json
+
+          # Stop backend
           kill $BACKEND_PID 2>/dev/null || true
-          test -s openapi.json
+
           echo "OpenAPI JSON generated at packages/backend-nestjs/openapi.json"
-          head -5 openapi.json
+          head -20 packages/backend-nestjs/openapi.json
 
       - name: Generate Kotlin and TypeScript API clients
         run: |
@@ -101,13 +75,13 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git diff --quiet || echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+          git diff --quiet packages/api-client-kt/ packages/api-client-ts/ packages/backend-nestjs/openapi.json || echo "changes_detected=true" >> "$GITHUB_OUTPUT"
 
       - name: Commit generated clients
         if: github.event_name == 'push' && steps.changes.outputs.changes_detected == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add packages/api-client-kt/ packages/api-client-ts/ packages/backend-nestjs/openapi.json
           git commit -m "🤖 Generated Kotlin and TypeScript API clients from OpenAPI spec"
           git push
