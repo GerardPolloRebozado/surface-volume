@@ -785,3 +785,48 @@ pre.code {
     scroll-behavior: auto !important;
   }
 }
+
+.node[data-run='ok'] {
+  border-color: color-mix(in srgb, var(--ok) 65%, var(--line-strong));
+}
+.node[data-run='fail'] {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 2px var(--bad-soft), var(--shade);
+}
+.node[data-run='run'] {
+  border-color: var(--accent);
+}
+.edge-label {
+  cursor: pointer;
+  pointer-events: all;
+}
+.inspector-empty {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.node-card {
+  position: relative;
+  width: 248px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shade);
+  transition: box-shadow 0.14s, border-color 0.14s;
+}
+.node-card[data-selected='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shade);
+}
+.node-card[data-run='ok'] {
+  border-color: color-mix(in srgb, var(--ok) 65%, var(--line-strong));
+}
+.node-card[data-run='fail'] {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 2px var(--bad-soft), var(--shade);
+}
+.node-card[data-run='run'] {
+  border-color: var(--accent);
+}

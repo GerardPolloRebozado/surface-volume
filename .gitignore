@@ -29,6 +29,11 @@ docs/spikes/**/bin/
 # ---------- Logs & test reports ----------
 *.log
 coverage/
+*.tsbuildinfo
+packages/backend-nestjs/prisma7.config.js
+packages/backend-nestjs/prisma7.config.js.map
+packages/backend-nestjs/prisma7.config.d.ts
+packages/backend-nestjs/prisma7.config.ts
 
 # ---------- Node / NestJS (pnpm) ----------
 node_modules/
@@ -121,3 +126,8 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+
+api-client-kt
+api-client-ts
+# ---------- NestJS OpenAPI spec (generated at runtime) ----------
+packages/backend-nestjs/openapi.json

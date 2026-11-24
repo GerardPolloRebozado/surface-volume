@@ -35,7 +35,7 @@ internal fun RunsPage(runs: List<Run>) {
     var onlyFailed by remember { mutableStateOf(false) }
     val visible = if (onlyFailed) runs.filter { !it.ok } else runs
     Page {
-        RunsSummary()
+        RunsSummary(runs)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = "Recent runs",
@@ -102,15 +102,18 @@ internal fun RunsPage(runs: List<Run>) {
 }
 
 @Composable
-private fun RunsSummary() {
+private fun RunsSummary(runs: List<Run>) {
     val colors = LocalAppColors.current
+    val succeeded = runs.count { it.ok }
+    val failed = runs.size - succeeded
+    val rate = if (runs.isEmpty()) "0%" else "${(succeeded * 100) / runs.size}%"
     Card(contentPadding = 18.dp, contentSpacing = 0.dp) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val stats = listOf(
-                Triple("128", "runs this week", colors.ink),
-                Triple("96.9%", "success rate", colors.ink),
-                Triple("4", "failed", colors.bad),
-                Triple("2.1 s", "average run", colors.ink),
+                Triple("${runs.size}", "runs", colors.ink),
+                Triple(rate, "success rate", colors.ink),
+                Triple("$failed", "failed", colors.bad),
+                Triple("—", "average run", colors.ink),
             )
             if (maxWidth >= 520.dp) {
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {

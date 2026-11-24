@@ -10,6 +10,8 @@
     "build:web": "pnpm --filter surface-web run build",
     "build:backend": "pnpm --filter backend-nestjs run build",
     "test:backend": "pnpm --filter backend-nestjs run test",
-    "generate:api-client": "bash scripts/generate-api-client.sh"
+    "generate:api-client": "bash scripts/generate-api-client.sh",
+    "dev:redis": "docker run -d --rm --name surface-redis -p 6379:6379 redis:7-alpine",
+    "dev:runner": "cd packages/runner-rs && cargo run -- work"
   }
 }

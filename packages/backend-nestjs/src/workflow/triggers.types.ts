@@ -1,5 +1,8 @@
 import type { InputField, OutputField } from './fields.types';
 import type { RunContext } from './context.types';
+import type { ActionPlan } from './action-plan';
+
+export interface PollingPlan extends ActionPlan {}
 
 export interface TriggerEvent {
   id: string;
@@ -47,7 +50,12 @@ export interface WebhookTrigger extends TriggerBase {
 export interface PollingTrigger extends TriggerBase {
   type: 'polling';
   defaultIntervalSec: number;
-  poll: (ctx: RunContext) => Promise<TriggerEvent[]>;
+  poll?: (ctx: RunContext) => Promise<TriggerEvent[]>;
+  plan?: (ctx: RunContext) => Promise<PollingPlan> | PollingPlan;
+  map?: (
+    outputs: Record<string, unknown>,
+    ctx: RunContext,
+  ) => Promise<TriggerEvent[]> | TriggerEvent[];
 }
 
 export interface ScheduleTrigger extends TriggerBase {

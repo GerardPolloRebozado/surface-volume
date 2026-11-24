@@ -25,3 +25,9 @@ export interface OAuthTokens {
   refreshToken?: string;
   expiresAt?: number;
 }
+
+export interface VerifiedCredential {
+  externalAccountId: string;
+  displayName: string;
+  scopes?: string[];
+}

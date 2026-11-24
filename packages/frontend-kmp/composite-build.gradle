@@ -1,0 +1,3 @@
+includeBuild("../../api-client-kt") {
+    project(":api-client-kt").projectDir = file("../../api-client-kt")
+}

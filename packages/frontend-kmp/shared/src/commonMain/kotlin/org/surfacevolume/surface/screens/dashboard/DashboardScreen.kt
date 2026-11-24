@@ -25,7 +25,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +37,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.surfacevolume.core.AppCatalogueEntry
+import org.surfacevolume.core.ConnectionResource
+import org.surfacevolume.core.WorkflowRun
+import org.surfacevolume.surface.ApiWorkflowListItem
 import org.surfacevolume.surface.AuthSession
+import org.surfacevolume.surface.LocalApiConfig
+import org.surfacevolume.surface.MobileApi
+import kotlinx.coroutines.launch
 import org.surfacevolume.surface.LocalAppColors
 import org.surfacevolume.surface.components.AppBar
 import org.surfacevolume.surface.components.AppIcon
@@ -71,61 +80,60 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(initialTab) }
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(WorkflowFilter.All) }
-    var building by remember { mutableStateOf(false) }
-    val workflows = remember { DemoWorkflows.toMutableStateList() }
-    val runs = remember { DemoRuns.toMutableStateList() }
+    var building by remember { mutableStateOf<String?>(null) }
+    val api = LocalApiConfig.current
+    val scope = rememberCoroutineScope()
+    var apps by remember { mutableStateOf<List<AppCatalogueEntry>>(emptyList()) }
+    val connections = remember { mutableStateListOf<ConnectionResource>() }
+    val workflowItems = remember { mutableStateListOf<ApiWorkflowListItem>() }
+    val runItems = remember { mutableStateListOf<WorkflowRun>() }
+    var loadError by remember { mutableStateOf<String?>(null) }
 
-    fun toggle(id: String, enabled: Boolean) {
-        val index = workflows.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            val workflow = workflows[index]
-            workflows[index] = workflow.copy(
-                enabled = enabled,
-                draft = if (enabled) false else workflow.draft,
-                needsAttention = false,
-            )
+    fun refresh() {
+        scope.launch {
+            try {
+                val loaded = MobileApi.apps(api)
+                apps = loaded
+                connections.clear()
+                connections.addAll(MobileApi.connections(api))
+                workflowItems.clear()
+                workflowItems.addAll(MobileApi.workflows(api))
+                runItems.clear()
+                runItems.addAll(MobileApi.runs(api))
+                loadError = null
+            } catch (error: Exception) {
+                loadError = error.message ?: "Could not load data"
+            }
         }
     }
 
-    fun runNow(workflow: Workflow) {
-        workflows[workflows.indexOfFirst { it.id == workflow.id }] =
-            workflow.copy(lastRun = "Just now", lastRunOk = true, needsAttention = false)
-        runs.add(
-            index = 0,
-            element = Run(workflow.name, workflow.services.first(), "Just now", "1.4 s", true),
-        )
+    LaunchedEffect(Unit) { refresh() }
+
+    val workflows = workflowItems.toList().toRows(apps)
+    val runs = runItems.toList().toRows(
+        workflowItems.associate { it.workflow.id to it.workflow.name },
+        workflowItems.associate { it.workflow.id to it.workflow.trigger.field("appId") },
+    )
+    val serviceConnections = connections.toList().toRows()
+
+    fun toggle(id: String, enabled: Boolean) {
+        scope.launch {
+            try {
+                if (enabled) MobileApi.enableWorkflow(api, id) else MobileApi.disableWorkflow(api, id)
+                refresh()
+            } catch (error: Exception) {
+                loadError = error.message
+            }
+        }
     }
 
-    fun createWorkflow(title: String, services: List<Service>, trigger: String, steps: Int) {
-        workflows.add(
-            index = 0,
-            element = Workflow(
-                id = "draft-${workflows.size + 1}",
-                name = title,
-                intent = "NEW. Open it to add steps.",
-                trigger = trigger,
-                services = services,
-                steps = steps,
-                enabled = false,
-                draft = true,
-                lastRun = null,
-            ),
-        )
-        tab = DashboardTab.Workflows
-    }
-
-    if (building) {
+    if (building != null) {
         BuilderScreen(
-            onBack = { building = false },
-            onSave = { result ->
-                createWorkflow(
-                    title = result.name,
-                    services = result.services,
-                    trigger = result.trigger,
-                    steps = result.steps,
-                )
-                building = false
-            },
+            workflowId = building,
+            apps = apps,
+            connections = connections.toList(),
+            onBack = { building = null },
+            onSaved = { building = null; refresh() },
         )
         return
     }
@@ -175,27 +183,65 @@ fun DashboardScreen(
                     filter = filter,
                     onFilterChange = { filter = it },
                     onToggle = ::toggle,
-                    onRun = ::runNow,
-                    onCreate = { building = true },
-                    onUseTemplate = { template ->
-                        createWorkflow(
-                            title = template.name,
-                            services = template.services,
-                            trigger = "Choose a trigger",
-                            steps = 1,
-                        )
+                    onRun = { workflow ->
+                        scope.launch {
+                            try {
+                                MobileApi.runWorkflow(api, workflow.id)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
                     },
+                    onCreate = {
+                        scope.launch {
+                            try {
+                                building = MobileApi.createWorkflow(api, "Untitled workflow").id
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onUseTemplate = {},
                 )
                 DashboardTab.Runs -> RunsPage(runs = runs)
-                DashboardTab.Services -> ServicesPage()
-                DashboardTab.Templates -> TemplatesPage(onUse = { template ->
-                    createWorkflow(
-                        title = template.name,
-                        services = template.services,
-                        trigger = "Choose a trigger",
-                        steps = 1,
-                    )
-                })
+                DashboardTab.Services -> ServicesPage(
+                    apps = apps,
+                    connections = serviceConnections,
+                    error = loadError,
+                    onConnect = { appId, credentials ->
+                        scope.launch {
+                            try {
+                                MobileApi.connect(api, appId, credentials)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onDisconnect = { id ->
+                        scope.launch {
+                            try {
+                                MobileApi.disconnect(api, id)
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                    onTest = { id ->
+                        scope.launch {
+                            try {
+                                val result = MobileApi.testConnection(api, id)
+                                loadError = if (result.ok) null else result.message
+                                refresh()
+                            } catch (error: Exception) {
+                                loadError = error.message
+                            }
+                        }
+                    },
+                )
+                DashboardTab.Templates -> TemplatesPage(onUse = {})
                 DashboardTab.Settings -> SettingsPage(
                     name = name,
                     email = email,
@@ -356,8 +402,8 @@ private fun CompactNavItem(
 }
 
 private fun subtitleFor(tab: DashboardTab, workflowCount: Int): String = when (tab) {
-    DashboardTab.Workflows -> "$workflowCount workflows · 128 runs this week · 4 failed"
-    DashboardTab.Runs -> "Every run from the last seven days"
+    DashboardTab.Workflows -> "$workflowCount workflows"
+    DashboardTab.Runs -> "Workflow runs"
     DashboardTab.Services -> "Connections your workflows depend on"
     DashboardTab.Templates -> "Ready-made workflows you can copy"
     DashboardTab.Settings -> "Account and appearance"

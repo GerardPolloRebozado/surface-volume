@@ -5,5 +5,5 @@ export interface AppCredential {
   appId: string;
   displayName: string;
   credentials: Record<string, unknown>;
-  status: 'active' | 'expired' | 'revoked';
+  status: 'active' | 'expired' | 'revoked' | 'error';
 }

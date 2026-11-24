@@ -1,10 +1,12 @@
 ---
 import App from '../layouts/App.astro'
 import { WorkflowsRoute } from '../routes/Workflows'
-import { BACKEND_URL } from '../lib/auth'
+import { ACCESS_COOKIE, BACKEND_URL } from '../lib/auth'
+import { fetchWorkflows } from '../lib/workflows'
 
-const user = Astro.locals.user!
+const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
+const workflows = await fetchWorkflows(token, BACKEND_URL).catch(() => [])
 ---
 <App title="Workflows · area" active="workflows">
-  <WorkflowsRoute client:load user={user} server={BACKEND_URL} />
+  <WorkflowsRoute client:load workflows={workflows} token={token} backend={BACKEND_URL} />
 </App>

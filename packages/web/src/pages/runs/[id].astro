@@ -1,0 +1,13 @@
+---
+import App from '../../layouts/App.astro'
+import { RunDetailRoute } from '../../routes/RunDetail'
+import { ACCESS_COOKIE, BACKEND_URL } from '../../lib/auth'
+import { fetchRun } from '../../lib/workflows'
+
+const id = Astro.params.id ?? ''
+const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
+const run = await fetchRun(token, BACKEND_URL, id).catch(() => null)
+---
+<App title="Run detail · area" active="runs">
+  <RunDetailRoute client:load run={run} />
+</App>

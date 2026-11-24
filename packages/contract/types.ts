@@ -92,9 +92,77 @@ export interface Account {
   plan: string
 }
 
+export interface CatalogueField {
+  key: string
+  label: string
+  type: 'string' | 'text' | 'number' | 'boolean' | 'select' | 'datetime' | 'json' | 'file'
+  required?: boolean
+  secret?: boolean
+  helpText?: string
+  default?: unknown
+  choices?: { value: string; label: string }[]
+  list?: boolean
+}
+
+export interface CatalogueAuth {
+  type: 'none' | 'api_key' | 'basic' | 'oauth2' | 'custom'
+  fields: CatalogueField[]
+}
+
 export interface AppCatalogueEntry {
   id: string
   name: string
+  auth: CatalogueAuth
   triggers: Record<string, string>
   actions: Record<string, string>
+  triggerFields: Record<string, CatalogueField[]>
+  actionFields: Record<string, CatalogueField[]>
+  triggerOutputs: Record<string, CatalogueField[]>
+  actionOutputs: Record<string, CatalogueField[]>
+}
+
+export type StepStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+  | 'not_reached'
+  | 'waiting'
+
+export interface RunStep {
+  id: string
+  runId: string
+  nodeId: string
+  nodeType: string
+  seq: number
+  iteration: number
+  status: StepStatus
+  inputs: Record<string, unknown> | null
+  outputs: Record<string, unknown> | null
+  branchTaken: string | null
+  errorKind: ErrorKind | null
+  errorMessage: string | null
+  attempts: number
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface RunDetail extends WorkflowRun {
+  steps: RunStep[]
+}
+
+export interface PlanCall {
+  id: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  headers?: Record<string, string>
+  body?: unknown
+  outputs?: Record<string, string>
+  forEach?: string
+  as?: string
+}
+
+export interface ActionPlan {
+  calls: PlanCall[]
 }

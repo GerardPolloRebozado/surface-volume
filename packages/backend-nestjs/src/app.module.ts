@@ -15,9 +15,20 @@ import {
   SmtpTransport,
 } from '@nestjs/mail';
 import { join } from 'node:path';
+import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
+import { QueueModule } from './queue/queue.module';
+import { WorkflowsModule } from './workflow/workflows.module';
+import { AppsModule } from './apps/apps.module';
+import { ConnectionsModule } from './connections/connections.module';
+import { InternalModule } from './internal/internal.module';
+import { HooksModule } from './hooks/hooks.module';
+
+const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()];
 
 @Module({
   imports: [
+    ...crons,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -46,6 +57,18 @@ import { join } from 'node:path';
     }),
     UsersModule,
     AuthModule,
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+      },
+    }),
+    QueueModule,
+    AppsModule,
+    ConnectionsModule,
+    WorkflowsModule,
+    InternalModule,
+    HooksModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],
