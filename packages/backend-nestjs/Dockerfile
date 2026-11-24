@@ -10,6 +10,7 @@ RUN npm install -g pnpm@12
 COPY pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY packages/backend-nestjs/package.json ./packages/backend-nestjs/
 COPY packages/backend-nestjs/prisma ./packages/backend-nestjs/prisma/
+COPY packages/backend-nestjs/prisma.config.ts ./packages/backend-nestjs/prisma.config.ts
 
 WORKDIR /app/packages/backend-nestjs
 
@@ -40,6 +41,7 @@ RUN npm install -g pnpm@12
 COPY pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY packages/backend-nestjs/package.json ./packages/backend-nestjs/
 COPY packages/backend-nestjs/prisma ./packages/backend-nestjs/prisma/
+COPY packages/backend-nestjs/prisma.config.ts ./packages/backend-nestjs/prisma.config.ts
 COPY packages/backend-nestjs/entrypoint.sh ./packages/backend-nestjs/entrypoint.sh
 RUN chmod +x ./packages/backend-nestjs/entrypoint.sh
 
