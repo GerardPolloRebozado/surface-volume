@@ -14,7 +14,7 @@ COPY packages/backend-nestjs/src ./packages/backend-nestjs/src
 
 WORKDIR /app/packages/web
 
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install
 
 COPY packages/web ./
 
