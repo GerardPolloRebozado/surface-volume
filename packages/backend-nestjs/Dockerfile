@@ -3,8 +3,10 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install curl, bash, and pnpm via official standalone script
+RUN apk add --no-cache curl bash && \
+    curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.0.0-rc.0 SHELL="$(which bash)" bash -
+ENV PATH="/root/.local/share/pnpm:$PATH"
 
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
@@ -31,7 +33,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN apk add --no-cache curl bash && \
+    curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.0.0-rc.0 SHELL="$(which bash)" bash -
+ENV PATH="/root/.local/share/pnpm:$PATH"
 
 # Copy package files and prisma migrations/schema
 COPY package.json pnpm-lock.yaml* ./

@@ -3,7 +3,10 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install curl, bash, and pnpm via official standalone script
+RUN apk add --no-cache curl bash && \
+    curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.0.0-rc.0 SHELL="$(which bash)" bash -
+ENV PATH="/root/.local/share/pnpm:$PATH"
 
 # Copy monorepo dependencies needed by web
 COPY packages/web/package.json ./packages/web/
@@ -28,7 +31,9 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4321
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN apk add --no-cache curl bash && \
+    curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.0.0-rc.0 SHELL="$(which bash)" bash -
+ENV PATH="/root/.local/share/pnpm:$PATH"
 
 COPY packages/web/package.json ./
 RUN pnpm install --prod --frozen-lockfile=false
