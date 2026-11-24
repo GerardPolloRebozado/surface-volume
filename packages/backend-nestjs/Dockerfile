@@ -4,7 +4,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Install pnpm 11.0.0
-RUN npm install -g pnpm@11.0.0
+RUN npm install -g pnpm@12.0.0
 
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
