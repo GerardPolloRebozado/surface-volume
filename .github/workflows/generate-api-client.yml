@@ -16,6 +16,41 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # NOTE: the OpenAPI schema cannot be generated without a database and Redis.
+    # The NestJS app won't bootstrap without them:
+    #   - PrismaService.onModuleInit() calls await this.$connect()  (needs Postgres)
+    #   - BullModule.forRoot() / BullModule.registerQueue() connect to Redis
+    #   - SwaggerModule.createDocument() needs the fully-initialised app
+    # So instead of skipping them, we spin up throwaway Docker containers for
+    # postgres + redis via GitHub Actions service containers, run the backend to
+    # emit openapi.json, and GitHub Actions automatically stops/removes the
+    # service containers when the job finishes (success or failure).
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: surface_volume
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/surface_volume?schema=public
+      DISABLE_CRONS: "1"
+      INTERNAL_SERVICE_TOKEN: ci-token
+      JWT_SECRET: ci-secret-at-least-32-bytes-long-for-jwt-signing
+      APP_URL: http://localhost:8080
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
