@@ -17,6 +17,7 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "types": ["node", "jest"],
+    "rootDir": "."
   },
   // Only used by ts-node (npm run try:gmail); TypeScript 6 requires an explicit rootDir there.
   "ts-node": {
