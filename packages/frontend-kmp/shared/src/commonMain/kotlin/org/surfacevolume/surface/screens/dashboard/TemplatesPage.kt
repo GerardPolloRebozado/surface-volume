@@ -32,7 +32,12 @@ internal fun TemplatesPage(onUse: (Template) -> Unit) {
             fontSize = 13.sp,
             lineHeight = 19.sp,
         )
-        DemoTemplates.forEach { template ->
+        Text(
+            text = "No templates available yet.",
+            color = colors.mute,
+            fontSize = 12.sp,
+        )
+        emptyList<Template>().forEach { template ->
             Card(contentPadding = 16.dp, contentSpacing = 10.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

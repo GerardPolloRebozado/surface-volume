@@ -1,6 +1,5 @@
 ---
 import Base from './Base.astro'
-import { SERVICES } from '../data/mock'
 import { initials } from '../lib/session'
 import { Icon } from '../components/Icon'
 
@@ -17,7 +16,6 @@ const secondary = [
   { to: '/android', label: 'Android client', icon: 'phone' },
   { to: '/settings', label: 'Settings', icon: 'sliders' },
 ]
-const connected = SERVICES.filter((service) => service.state !== 'none').slice(0, 5)
 const isActive = (to: string) => (to === '/' ? active === '' || active === 'workflows' : active === to.slice(1))
 ---
 <Base title={title}>
@@ -46,20 +44,6 @@ const isActive = (to: string) => (to === '/' ? active === '' || active === 'work
             </a>
           ))}
         </nav>
-        <div class="mt-5">
-          <div class="mb-1.5 flex items-center justify-between px-2">
-            <span class="text-[10.5px] font-semibold uppercase tracking-[.09em] text-faint">Connected services</span>
-            <a href="/services" class="text-[11px] text-mute hover:text-ink">Manage</a>
-          </div>
-          <div class="space-y-0.5">
-            {connected.map((service) => (
-              <a href={`/services?service=${service.id}`} class="flex items-center gap-2 rounded-lg px-2 py-[5px] text-[12.5px] text-mute hover:bg-fill">
-                <span class="h-3 w-3 rounded" style={`background:${service.color}`} aria-hidden="true"></span>
-                <span class="truncate">{service.name}</span>
-              </a>
-            ))}
-          </div>
-        </div>
         <div class="mt-auto flex items-center gap-2.5 rounded-xl p-2">
           <span class="grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">{initials(user)}</span>
           <span class="min-w-0 flex-1">

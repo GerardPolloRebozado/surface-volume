@@ -25,7 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,8 +72,8 @@ fun DashboardScreen(
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(WorkflowFilter.All) }
     var building by remember { mutableStateOf(false) }
-    val workflows = remember { DemoWorkflows.toMutableStateList() }
-    val runs = remember { DemoRuns.toMutableStateList() }
+    val workflows = remember { mutableStateListOf<Workflow>() }
+    val runs = remember { mutableStateListOf<Run>() }
 
     fun toggle(id: String, enabled: Boolean) {
         val index = workflows.indexOfFirst { it.id == id }
@@ -87,45 +87,10 @@ fun DashboardScreen(
         }
     }
 
-    fun runNow(workflow: Workflow) {
-        workflows[workflows.indexOfFirst { it.id == workflow.id }] =
-            workflow.copy(lastRun = "Just now", lastRunOk = true, needsAttention = false)
-        runs.add(
-            index = 0,
-            element = Run(workflow.name, workflow.services.first(), "Just now", "1.4 s", true),
-        )
-    }
-
-    fun createWorkflow(title: String, services: List<Service>, trigger: String, steps: Int) {
-        workflows.add(
-            index = 0,
-            element = Workflow(
-                id = "draft-${workflows.size + 1}",
-                name = title,
-                intent = "NEW. Open it to add steps.",
-                trigger = trigger,
-                services = services,
-                steps = steps,
-                enabled = false,
-                draft = true,
-                lastRun = null,
-            ),
-        )
-        tab = DashboardTab.Workflows
-    }
-
     if (building) {
         BuilderScreen(
             onBack = { building = false },
-            onSave = { result ->
-                createWorkflow(
-                    title = result.name,
-                    services = result.services,
-                    trigger = result.trigger,
-                    steps = result.steps,
-                )
-                building = false
-            },
+            onSave = { building = false },
         )
         return
     }
@@ -175,27 +140,13 @@ fun DashboardScreen(
                     filter = filter,
                     onFilterChange = { filter = it },
                     onToggle = ::toggle,
-                    onRun = ::runNow,
+                    onRun = {},
                     onCreate = { building = true },
-                    onUseTemplate = { template ->
-                        createWorkflow(
-                            title = template.name,
-                            services = template.services,
-                            trigger = "Choose a trigger",
-                            steps = 1,
-                        )
-                    },
+                    onUseTemplate = {},
                 )
                 DashboardTab.Runs -> RunsPage(runs = runs)
                 DashboardTab.Services -> ServicesPage()
-                DashboardTab.Templates -> TemplatesPage(onUse = { template ->
-                    createWorkflow(
-                        title = template.name,
-                        services = template.services,
-                        trigger = "Choose a trigger",
-                        steps = 1,
-                    )
-                })
+                DashboardTab.Templates -> TemplatesPage(onUse = {})
                 DashboardTab.Settings -> SettingsPage(
                     name = name,
                     email = email,
@@ -356,8 +307,8 @@ private fun CompactNavItem(
 }
 
 private fun subtitleFor(tab: DashboardTab, workflowCount: Int): String = when (tab) {
-    DashboardTab.Workflows -> "$workflowCount workflows · 128 runs this week · 4 failed"
-    DashboardTab.Runs -> "Every run from the last seven days"
+    DashboardTab.Workflows -> "$workflowCount workflows"
+    DashboardTab.Runs -> "Workflow runs"
     DashboardTab.Services -> "Connections your workflows depend on"
     DashboardTab.Templates -> "Ready-made workflows you can copy"
     DashboardTab.Settings -> "Account and appearance"

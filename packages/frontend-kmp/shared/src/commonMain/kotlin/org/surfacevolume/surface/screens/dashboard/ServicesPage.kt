@@ -27,7 +27,8 @@ import org.surfacevolume.surface.components.TopRule
 @Composable
 internal fun ServicesPage() {
     val colors = LocalAppColors.current
-    val connected = DemoServices.count { it.connected }
+    val connections = emptyList<ServiceConnection>()
+    val connected = connections.count { it.connected }
     Page {
         Card(contentPadding = 8.dp, contentSpacing = 0.dp) {
             Row(
@@ -42,13 +43,13 @@ internal fun ServicesPage() {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = "$connected of ${DemoServices.size} connected",
+                    text = "$connected of ${connections.size} connected",
                     color = colors.mute,
                     fontSize = 11.5.sp,
                 )
             }
             TopRule()
-            DemoServices.forEachIndexed { index, connection ->
+            connections.forEachIndexed { index, connection ->
                 if (index > 0) TopRule()
                 ListRow(
                     leading = {

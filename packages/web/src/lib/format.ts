@@ -1,10 +1,9 @@
 import type { WorkflowRun } from '@/data/contract'
-import { NOW } from '@/data/mock'
 
 const LOCALE = 'en-GB'
 
-export function relativeTime(iso: string): string {
-  const minutes = Math.max(0, Math.floor((NOW.getTime() - new Date(iso).getTime()) / 60_000))
+export function relativeTime(iso: string, now: Date = new Date()): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000))
   if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes} min ago`
   const hours = Math.floor(minutes / 60)

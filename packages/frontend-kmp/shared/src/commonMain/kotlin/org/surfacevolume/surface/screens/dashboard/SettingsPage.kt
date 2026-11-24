@@ -87,7 +87,7 @@ internal fun SettingsPage(
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = "Signed in on this device. Sessions expire after 30 days.",
+                        text = "Account settings are managed by the API.",
                         color = colors.mute,
                         fontSize = 11.5.sp,
                     )

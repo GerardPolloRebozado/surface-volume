@@ -60,7 +60,7 @@ export function SettingsRoute({ user }: { user: AuthUser }) {
               content={
                 <>
                   <div className="text-[13px] font-medium">Sessions</div>
-                  <div className="text-[11.5px] text-mute">Signed in on this device. Sessions expire after 30 days.</div>
+                  <div className="text-[11.5px] text-mute">Account settings are managed by the API.</div>
                 </>
               }
             />
@@ -70,11 +70,6 @@ export function SettingsRoute({ user }: { user: AuthUser }) {
             <div className="text-[13px] font-semibold">Sign out</div>
             <div className="mt-0.5 text-[11.5px] text-mute">You can sign back in with your account.</div>
             <a href="/api/auth/signout" className="btn btn-danger mt-3 inline-block">Sign out</a>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[11px] text-faint">
-            <Icon name="info" size={13} />
-            <span>Demo data</span>
           </div>
         </Page>
       </div>

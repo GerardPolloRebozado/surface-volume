@@ -87,21 +87,6 @@ internal fun WorkflowsPage(
             }
         }
 
-        Banner(
-            tone = BannerTone.Warn,
-            title = "GitHub needs reconnecting",
-            body = "Triage new issues uses GitHub, which expired two days ago. Runs will fail until you reconnect.",
-            actions = {
-                Button(text = "Reconnect GitHub", onClick = {}, small = true)
-                Button(
-                    text = "View failed runs",
-                    onClick = {},
-                    variant = ButtonVariant.Ghost,
-                    small = true,
-                )
-            },
-        )
-
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             if (maxWidth >= 860.dp) {
                 Row(
@@ -130,13 +115,6 @@ internal fun WorkflowsPage(
         )
 
         TemplatesSection(onUse = onUseTemplate)
-
-        Text(
-            text = "mock data",
-            color = colors.faint,
-            fontSize = 11.sp,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        )
     }
 }
 
@@ -157,7 +135,7 @@ private fun Greeting(
             modifier = Modifier.semantics { heading() },
         )
         Text(
-            text = "${workflows.size} workflows · 128 runs this week · 4 failed",
+            text = "${workflows.size} workflows",
             color = colors.mute,
             fontSize = 13.5.sp,
         )
@@ -188,22 +166,22 @@ private fun SuccessCard(modifier: Modifier = Modifier, fillHeight: Boolean = fal
             trailing = { TextLink(text = "View runs", onClick = {}, fontSize = 12.sp) },
         )
         Stat(
-            value = "96.9",
+            value = "0",
             unit = "%",
             label = "Runs succeeded",
-            delta = "+1.4 pts",
+            delta = null,
             deltaTone = PillTone.Ok,
         )
         if (fillHeight) {
             BarChart(
-                values = DemoPerDay,
+                values = emptyList(),
                 modifier = Modifier.weight(1f),
                 height = null,
                 contentDescription = "Success rate per day, last 14 days",
             )
         } else {
             BarChart(
-                values = DemoPerDay,
+                values = emptyList(),
                 height = 88.dp,
                 contentDescription = "Success rate per day, last 14 days",
             )
@@ -214,10 +192,10 @@ private fun SuccessCard(modifier: Modifier = Modifier, fillHeight: Boolean = fal
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            CountLabel(value = "128", label = "runs this week", color = colors.ink)
-            CountLabel(value = "4", label = "failed", color = colors.bad)
+            CountLabel(value = "0", label = "runs this week", color = colors.ink)
+            CountLabel(value = "0", label = "failed", color = colors.bad)
             Spacer(modifier = Modifier.weight(1f))
-            Text(text = "4 today", color = colors.faint, fontSize = 11.sp)
+            Text(text = "", color = colors.faint, fontSize = 11.sp)
         }
     }
 }
@@ -468,13 +446,13 @@ private fun TemplatesSection(onUse: (Template) -> Unit) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             if (maxWidth >= 720.dp) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DemoTemplates.forEach { template ->
+                    emptyList<Template>().forEach { template ->
                         TemplateCard(template = template, onUse = onUse, modifier = Modifier.weight(1f))
                     }
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DemoTemplates.forEach { template ->
+                    emptyList<Template>().forEach { template ->
                         TemplateCard(
                             template = template,
                             onUse = onUse,
