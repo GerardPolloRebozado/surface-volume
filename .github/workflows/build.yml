@@ -132,7 +132,7 @@ jobs:
       - name: Build and load Backend Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./packages/backend-nestjs
+          context: .
           file: ./packages/backend-nestjs/Dockerfile
           load: true
           tags: surface-backend:local
