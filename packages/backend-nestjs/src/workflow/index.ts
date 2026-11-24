@@ -5,4 +5,5 @@ export * from './fields.types';
 export * from './context.types';
 export * from './triggers.types';
 export * from './actions.types';
+export * from './action.implementation';
 export * from './workflow.types';
