@@ -67,6 +67,7 @@ jobs:
         uses: pnpm/action-setup@v6
         with:
           version: 11
+          cache: true
 
       - name: Install backend dependencies
         run: |
@@ -84,23 +85,24 @@ jobs:
           pnpm run build
 
       - name: Generate OpenAPI JSON
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd packages/backend-nestjs
           # Start NestJS in background to serve OpenAPI spec
           pnpm run start:dev &
           BACKEND_PID=$!
-          sleep 15
-
-          # Fetch OpenAPI JSON from running server
-          curl -s http://localhost:8080/api-json > packages/backend-nestjs/openapi.json
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api-json -o openapi.json; then
+              break
+            fi
+            sleep 1
+          done
 
           # Stop backend
           kill $BACKEND_PID 2>/dev/null || true
 
+          test -s openapi.json
           echo "OpenAPI JSON generated at packages/backend-nestjs/openapi.json"
-          head -20 packages/backend-nestjs/openapi.json
+          head -20 openapi.json
 
       - name: Generate Kotlin and TypeScript API clients
         run: |
