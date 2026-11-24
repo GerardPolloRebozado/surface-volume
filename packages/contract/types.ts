@@ -98,3 +98,49 @@ export interface AppCatalogueEntry {
   triggers: Record<string, string>
   actions: Record<string, string>
 }
+
+export type StepStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+  | 'not_reached'
+  | 'waiting'
+
+export interface RunStep {
+  id: string
+  runId: string
+  nodeId: string
+  nodeType: string
+  seq: number
+  iteration: number
+  status: StepStatus
+  inputs: Record<string, unknown> | null
+  outputs: Record<string, unknown> | null
+  branchTaken: string | null
+  errorKind: ErrorKind | null
+  errorMessage: string | null
+  attempts: number
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface RunDetail extends WorkflowRun {
+  steps: RunStep[]
+}
+
+export interface PlanCall {
+  id: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  headers?: Record<string, string>
+  body?: unknown
+  outputs?: Record<string, string>
+  forEach?: string
+  as?: string
+}
+
+export interface ActionPlan {
+  calls: PlanCall[]
+}

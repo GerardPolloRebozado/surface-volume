@@ -12,6 +12,7 @@
 generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
+  moduleFormat    = "cjs"
   previewFeatures = ["postgresqlExtensions"]
 }
 
@@ -167,6 +168,45 @@ enum NotificationKind {
   run_failed
   weekly_summary
   reconnect
+}
+
+model AuthenticationRefreshToken {
+  id             String   @id
+  familyId       String   @map("family_id")
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @map("created_at") @db.Timestamptz
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz
+  familyExpiresAt DateTime @map("family_expires_at") @db.Timestamptz
+  usedAt         DateTime? @map("used_at") @db.Timestamptz
+  claims         Json?
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("authentication_refresh_tokens")
+}
+
+model AuthenticationRefreshTokenFamily {
+  familyId  String   @id @map("family_id")
+  userId    String   @map("user_id") @db.Uuid
+  revokedAt DateTime @map("revoked_at") @db.Timestamptz
+
+  @@index([userId])
+  @@map("authentication_refresh_token_families")
+}
+
+model AuthenticationEmailToken {
+  id          String   @id
+  purpose     String
+  userId      String   @map("user_id") @db.Uuid
+  email       String   @db.Citext
+  fingerprint String?
+  createdAt   DateTime @map("created_at") @db.Timestamptz
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("authentication_email_tokens")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -546,6 +586,7 @@ model RunStep {
   nodeType      String     @map("node_type")
   /// Execution order inside the run.
   seq           Int
+  iteration     Int        @default(0)
   status        StepStatus @default(pending)
   /// Inputs after {{ }} substitution, secrets redacted.
   inputs        Json?
@@ -565,7 +606,8 @@ model RunStep {
   aiInvocations AiInvocation[]
   reviewTasks   ReviewTask[]
 
-  @@unique([runId, nodeId])
+  @@unique([runId, nodeId, iteration])
+  @@index([status, startedAt])
   @@map("run_steps")
 }
 

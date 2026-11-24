@@ -7,6 +7,7 @@ import { JwtAuth } from './jwt-auth.provider.js';
 import { EmailVerificationMailer } from './email-verification.mailer.js';
 import { EmailVerificationController } from './email-verification.controller.js';
 import { TokenService } from './token.service.js';
+import { AuthenticationStorageService } from './authentication-storage.service.js';
 
 @Module({
   imports: [UsersModule, JwtModule.register({})],
@@ -16,6 +17,7 @@ import { TokenService } from './token.service.js';
     CredentialsService,
     EmailVerificationMailer,
     TokenService,
+    AuthenticationStorageService,
   ],
   exports: [JwtAuth, TokenService],
 })

@@ -1,10 +1,7 @@
 ---
 import App from '../layouts/App.astro'
 import { AndroidRoute } from '../routes/Android'
-import { pairingCode } from '../lib/session'
-
-const user = Astro.locals.user!
 ---
 <App title="Android client · area" active="android">
-  <AndroidRoute client:load code={pairingCode(user.id)} />
+  <AndroidRoute client:load />
 </App>

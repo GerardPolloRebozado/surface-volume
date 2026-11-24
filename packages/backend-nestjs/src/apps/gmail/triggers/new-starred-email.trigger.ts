@@ -1,17 +1,22 @@
 import type {
+  PollingPlan,
   PollingTrigger,
   RunContext,
   TriggerEvent,
 } from '../../../workflow';
-import { getAccessToken, getMessage, listAllMessageIds } from '../gmail.client';
+import {
+  getAccessToken,
+  getMessage,
+  listAllMessageIds,
+} from '../gmail.client';
 import { emailOutputFields, emailSample } from '../gmail.outputs';
 import { toEmailEvent } from '../gmail.parse';
 
+const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+const STARRED_KEY = 'starred';
 const STARRED_QUERY = 'is:starred';
-/** Gmail's max page size; 5 pages covers up to 2,500 starred messages. */
 export const STARRED_PAGE_SIZE = 500;
 export const STARRED_MAX_PAGES = 5;
-const STARRED_KEY = 'starred';
 
 export const newStarredEmail: PollingTrigger = {
   key: 'new_starred_email',
@@ -23,6 +28,35 @@ export const newStarredEmail: PollingTrigger = {
   outputFields: emailOutputFields,
   sample: { ...emailSample, labels: ['INBOX', 'STARRED'] },
 
+  plan(ctx: RunContext): PollingPlan {
+    const token = getAccessToken(ctx);
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    };
+
+    return {
+      calls: [
+        {
+          id: 'list',
+          method: 'GET',
+          url: `${BASE}/messages?q=is%3Astarred&maxResults=500`,
+          headers,
+          outputs: { ids: '$.messages[*].id' },
+        },
+        {
+          id: 'message',
+          forEach: 'ids',
+          as: 'id',
+          method: 'GET',
+          url: `${BASE}/messages/{{ id }}?format=full`,
+          headers,
+          outputs: { messages: '$' },
+        },
+      ],
+    };
+  },
+
   async poll(ctx: RunContext): Promise<TriggerEvent[]> {
     const token = getAccessToken(ctx);
     const { ids, complete } = await listAllMessageIds(
@@ -33,7 +67,6 @@ export const newStarredEmail: PollingTrigger = {
     );
     const stored = await ctx.store.get<string[]>(STARRED_KEY);
 
-    // First run: record the current starred set as a baseline, fire nothing.
     if (stored === undefined) {
       await ctx.store.set(STARRED_KEY, ids);
       return [];
@@ -47,18 +80,51 @@ export const newStarredEmail: PollingTrigger = {
       .map(toEmailEvent)
       .sort((a, b) => a.occurredAt!.localeCompare(b.occurredAt!));
 
-    // A complete listing replaces the set, so unstar + re-star fires again.
-    // A truncated one can't tell "unstarred" from "past the page cap", so it
-    // keeps old IDs to avoid re-firing them later.
     const next = complete ? ids : [...new Set([...stored, ...ids])];
     await ctx.store.set(STARRED_KEY, next);
     return events;
   },
 
+  async map(
+    outputs: Record<string, unknown>,
+    ctx: RunContext,
+  ): Promise<TriggerEvent[]> {
+    const messages = Array.isArray(outputs.messages)
+      ? (outputs.messages as Parameters<typeof toEmailEvent>[0][])
+      : [];
+    const stored = await ctx.store.get<string[]>(STARRED_KEY);
+    const ids = messages.map((message) => message.id);
+
+    if (stored === undefined) {
+      await ctx.store.set(STARRED_KEY, ids);
+      return [];
+    }
+
+    const known = new Set(stored);
+    const events = messages
+      .filter((message) => !known.has(message.id))
+      .map(toEmailEvent)
+      .sort((a, b) => a.occurredAt!.localeCompare(b.occurredAt!));
+
+    await ctx.store.set(STARRED_KEY, [...new Set([...stored, ...ids])]);
+    return events;
+  },
+
   async test(ctx: RunContext): Promise<TriggerEvent[]> {
     const token = getAccessToken(ctx);
-    const { ids } = await listAllMessageIds(token, STARRED_QUERY, 1, 3);
-    const messages = await Promise.all(ids.map((id) => getMessage(token, id)));
-    return messages.map(toEmailEvent);
+    const response = await fetch(
+      `${BASE}/messages?q=is%3Astarred&maxResults=3`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const body = (await response.json()) as { messages?: { id: string }[] };
+    const events: TriggerEvent[] = [];
+    for (const item of body.messages ?? []) {
+      const message = await fetch(
+        `${BASE}/messages/${item.id}?format=full`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      events.push(toEmailEvent((await message.json()) as Parameters<typeof toEmailEvent>[0]));
+    }
+    return events;
   },
 };

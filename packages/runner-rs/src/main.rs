@@ -1,11 +1,13 @@
-// NestJS gets POST /workflows/:id/runs, writes to the postgres
-// Nest puts { runId } into Redis queue "runs"
-// We run the stuff here, however it works
+mod client;
+mod executor;
 
 use bullmq::options::{RedisConnectionOptions, WorkerOptions};
-use bullmq::{Job, Worker};
-use serde_json::json;
+use bullmq::{Error as BullmqError, Job, Worker};
+use client::InternalApi;
+use executor::ActionPlan;
+use serde_json::{json, Value};
 use std::env;
+use std::sync::Arc;
 
 fn redis_options() -> RedisConnectionOptions {
     let mut opts = RedisConnectionOptions::default();
@@ -13,40 +15,102 @@ fn redis_options() -> RedisConnectionOptions {
     opts
 }
 
-// we need the .await to run this
+fn to_worker_error(error: anyhow::Error) -> BullmqError {
+    BullmqError::InvalidConfig(error.to_string())
+}
+
+async fn run_step(api: &InternalApi, step_id: &str, attempt: u64) -> anyhow::Result<Value> {
+    let claim = api.claim_step(step_id, attempt).await?;
+    if claim.get("reason").is_some() || claim.get("plan").is_none() {
+        return Ok(claim);
+    }
+
+    let plan: ActionPlan = serde_json::from_value(claim["plan"].clone())?;
+    let (outputs, error) = executor::execute_plan(api.http(), plan).await?;
+
+    let outcome = match error {
+        None => json!({ "status": "succeeded", "outputs": outputs }),
+        Some(error) => json!({
+            "status": "failed",
+            "outputs": outputs,
+            "errorKind": error.kind,
+            "errorMessage": error.message,
+            "retryAfterMs": error.retry_after_ms,
+        }),
+    };
+
+    api.report_step(step_id, attempt, outcome).await
+}
+
+async fn run_poll(api: &InternalApi, trigger_id: &str, due_at: &str) -> anyhow::Result<Value> {
+    let claim = api.claim_poll(trigger_id, due_at).await?;
+    if claim.get("reason").is_some() || claim.get("plan").is_none() {
+        return Ok(claim);
+    }
+
+    let plan: ActionPlan = serde_json::from_value(claim["plan"].clone())?;
+    let (outputs, error) = executor::execute_plan(api.http(), plan).await?;
+
+    let mut body = match error {
+        None => json!({ "status": "succeeded", "outputs": outputs }),
+        Some(error) => json!({
+            "status": "failed",
+            "outputs": outputs,
+            "errorKind": error.kind,
+            "errorMessage": error.message,
+            "retryAfterMs": error.retry_after_ms,
+        }),
+    };
+    body["dueAt"] = json!(due_at);
+
+    api.submit_poll(trigger_id, body).await
+}
+
 async fn work() -> anyhow::Result<()> {
+    let api = Arc::new(InternalApi::from_env()?);
+
     let mut opts = WorkerOptions::default();
     opts.connection = redis_options();
-    opts.concurrency = 2;
+    opts.concurrency = 4;
 
     let worker = Worker::with_options(
-        "runs",
-        // Box::pin is Rust stuff this crate needs:
-        //   Box  -> fixed-size pointer, so any async block can be stored
-        //   Pin  -> don't move it around while it is running
-        // async move = the block owns `job`, it doesn't borrow it
-        |job: Job, _token| {
-            // _token is BullMQ's "stop now" signal, so we will do:
-            // if token.is_cancelled() { return Ok(json!({...})) }
+        "workflow",
+        move |job: Job, _token| {
+            let api = api.clone();
             Box::pin(async move {
-                println!(
-                    "processing job {} ({}) data={}",
-                    job.id(),
-                    job.name(),
-                    job.data()
-                );
-
-                // real runner goes here
-                Ok(json!({ "ok": true }))
+                match job.name() {
+                    "run-step" => {
+                        let data = job.data();
+                        let step_id = data["stepId"].as_str().ok_or_else(|| {
+                            BullmqError::InvalidConfig("missing stepId".into())
+                        })?;
+                        let attempt = data["attempt"].as_u64().unwrap_or(1);
+                        let result = run_step(&api, step_id, attempt)
+                            .await
+                            .map_err(to_worker_error)?;
+                        Ok(result)
+                    }
+                    "poll" => {
+                        let data = job.data();
+                        let trigger_id = data["triggerId"].as_str().ok_or_else(|| {
+                            BullmqError::InvalidConfig("missing triggerId".into())
+                        })?;
+                        let due_at = data["dueAt"].as_str().unwrap_or("");
+                        let result = run_poll(&api, trigger_id, due_at)
+                            .await
+                            .map_err(to_worker_error)?;
+                        Ok(result)
+                    }
+                    other => Ok(json!({ "skipped": other })),
+                }
             })
         },
         opts,
     )
     .await?;
 
-    println!("runner listening on queue 'runs' (Ctrl-C to stop)");
+    println!("runner listening on workflow (Ctrl-C to stop)");
     tokio::signal::ctrl_c().await?;
-
     worker.close(5_000).await?;
     Ok(())
 }
