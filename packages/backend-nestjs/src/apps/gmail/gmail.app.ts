@@ -15,6 +15,16 @@ export const gmailApp: AppDefinition = {
       GMAIL_SEND_SCOPE,
     ],
     pkce: true,
+    fields: [
+      {
+        key: 'accessToken',
+        label: 'Access token',
+        type: 'string',
+        required: true,
+        secret: true,
+        helpText: 'Google OAuth access token. It needs the gmail.send scope.',
+      },
+    ],
   },
   triggers: {
     [newEmailMatchingSearch.key]: newEmailMatchingSearch,
