@@ -20,3 +20,20 @@ export function toFileEvent(f: DriveFile): TriggerEvent {
     },
   };
 }
+
+/** Maps a modified Drive file to the file_updated output shape. */
+export function toModifiedEvent(f: DriveFile): TriggerEvent {
+  const user = f.lastModifyingUser;
+  return {
+    // One event per (file, revision time), so each edit fires exactly once.
+    id: `${f.id}:${f.modifiedTime ?? ''}`,
+    occurredAt: f.modifiedTime,
+    data: {
+      file_id: f.id,
+      name: f.name ?? '',
+      web_view_link: f.webViewLink ?? '',
+      modified_time: f.modifiedTime ?? '',
+      last_modifying_user: user?.emailAddress || user?.displayName || '',
+    },
+  };
+}

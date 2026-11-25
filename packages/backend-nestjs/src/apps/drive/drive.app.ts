@@ -1,4 +1,5 @@
 import type { AppDefinition } from '../../workflow';
+import { fileUpdated } from './triggers/file-updated.trigger';
 import { newFileInFolder } from './triggers/new-file-in-folder.trigger';
 
 export const driveApp: AppDefinition = {
@@ -13,6 +14,7 @@ export const driveApp: AppDefinition = {
   },
   triggers: {
     [newFileInFolder.key]: newFileInFolder,
+    [fileUpdated.key]: fileUpdated,
   },
   actions: {},
 };

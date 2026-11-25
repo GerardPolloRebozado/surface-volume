@@ -1,11 +1,12 @@
 /**
- * Runs the Drive "new file in folder" trigger once against a real account,
+ * Runs a Drive trigger (new file in folder, or file updated) once against a real account,
  * keeping its state between runs.
  *
  *   npm run try:drive -- --folders                 # list folder IDs to pick from
  *   npm run try:drive -- <folder_id> [--mime pdf]  # poll (first run = baseline)
  *   npm run try:drive -- <folder_id> --test        # preview, no state change
  *   npm run try:drive -- <folder_id> --reset       # forget saved state
+ *   npm run try:drive -- <folder_id> --updated [--file <file_id>]  # file_updated trigger
  */
 import {
   existsSync,
@@ -15,7 +16,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { newFileInFolder as trigger } from '../src/apps/drive/triggers/new-file-in-folder.trigger';
+import { fileUpdated } from '../src/apps/drive/triggers/file-updated.trigger';
+import { newFileInFolder } from '../src/apps/drive/triggers/new-file-in-folder.trigger';
 import type { KeyValueStore, RunContext } from '../src/workflow';
 
 const STATE_DIR = join(__dirname, '..', '.drive-trigger-state');
@@ -27,6 +29,7 @@ function usage(message?: string): never {
       'Usage:',
       '  npm run try:drive -- --folders',
       '  npm run try:drive -- <folder_id> [--mime any|document|spreadsheet|pdf|image] [--test] [--reset]',
+      '  npm run try:drive -- <folder_id> --updated [--file <file_id>] [--test] [--reset]',
       '',
       'Needs DRIVE_TOKEN set to an access token with the drive.readonly scope.',
     ].join('\n'),
@@ -36,14 +39,21 @@ function usage(message?: string): never {
 
 async function main() {
   const args = process.argv.slice(2);
-  const mimeIdx = args.indexOf('--mime');
-  const mime = mimeIdx >= 0 ? args[mimeIdx + 1] : 'any';
-  if (mimeIdx >= 0) args.splice(mimeIdx, 2);
+  const takeOption = (name: string) => {
+    const i = args.indexOf(name);
+    return i >= 0 ? args.splice(i, 2)[1] : undefined;
+  };
+  const mime = takeOption('--mime') ?? 'any';
+  const fileId = takeOption('--file') ?? '';
   const flags = new Set(args.filter((a) => a.startsWith('--')));
   const [folderId] = args.filter((a) => !a.startsWith('--'));
   if (!folderId && !flags.has('--folders')) usage('Missing folder ID.');
+  const trigger = flags.has('--updated') ? fileUpdated : newFileInFolder;
 
-  const stateFile = join(STATE_DIR, `${folderId}-${mime}.json`);
+  const stateFile = join(
+    STATE_DIR,
+    `${trigger.key}-${folderId}-${flags.has('--updated') ? fileId || 'all' : mime}.json`,
+  );
   if (flags.has('--reset')) {
     rmSync(stateFile, { force: true });
     console.log(`Forgot saved state for folder ${folderId} (${mime}).`);
@@ -62,7 +72,7 @@ async function main() {
     delete: async (key) => void delete state[key],
   };
   const ctx: RunContext = {
-    inputs: { folder_id: folderId, mime_type: mime },
+    inputs: { folder_id: folderId, mime_type: mime, file_id: fileId },
     store,
     credential: {
       id: 'manual',
@@ -90,10 +100,8 @@ async function main() {
   }
 
   if (firstRun) {
-    console.log(
-      'First run: saved the folder contents as a starting point. Nothing fires yet.',
-    );
-    console.log('Now add or move a file into the folder and run again.');
+    console.log('First run: saved a starting point. Nothing fires yet.');
+    console.log('Now add/move (or edit, with --updated) a file and run again.');
     return;
   }
   console.log(

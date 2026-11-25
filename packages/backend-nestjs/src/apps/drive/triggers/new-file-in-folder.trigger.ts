@@ -8,8 +8,8 @@ import {
   FOLDER_MIME,
   getAccessToken,
   listFiles,
-  listFolders,
 } from '../drive.client';
+import { folderChoices } from '../drive.choices';
 import { toFileEvent } from '../drive.parse';
 
 /** Drive's max page size; 5 pages covers folders of up to 5,000 files. */
@@ -52,13 +52,7 @@ export const newFileInFolder: PollingTrigger = {
       label: 'Folder',
       type: 'select',
       required: true,
-      async dynamicChoices(ctx) {
-        const folders = await listFolders(getAccessToken(ctx));
-        return [
-          { value: 'root', label: 'My Drive (root)' },
-          ...folders.map((f) => ({ value: f.id, label: f.name ?? f.id })),
-        ];
-      },
+      dynamicChoices: folderChoices,
     },
     {
       key: 'mime_type',

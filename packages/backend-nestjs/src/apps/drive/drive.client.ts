@@ -18,6 +18,10 @@ export interface DriveFile {
   owners?: { emailAddress?: string }[];
   /** int64 encoded as a string; absent for Google Docs/Sheets/etc. */
   size?: string;
+  modifiedTime?: string;
+  parents?: string[];
+  trashed?: boolean;
+  lastModifyingUser?: { displayName?: string; emailAddress?: string };
 }
 
 interface ListResponse {
@@ -90,4 +94,84 @@ export async function listFolders(token: string): Promise<DriveFile[]> {
     { maxPages: 3, orderBy: 'name', fields: 'id,name' },
   );
   return files;
+}
+
+export interface DriveChange {
+  fileId?: string;
+  removed?: boolean;
+  time?: string;
+  file?: DriveFile;
+}
+
+interface ChangesResponse {
+  changes?: DriveChange[];
+  nextPageToken?: string;
+  newStartPageToken?: string;
+}
+
+export interface ChangesPage {
+  changes: DriveChange[];
+  /** Token to resume from on the next poll. */
+  nextToken: string;
+  /** false when `maxPages` was reached and more changes are pending. */
+  complete: boolean;
+}
+
+const ALL_DRIVES = 'supportsAllDrives=true&includeItemsFromAllDrives=true';
+
+/** changes.getStartPageToken: the token for "changes from now on". */
+export async function getStartPageToken(token: string): Promise<string> {
+  const body = await googleGet<{ startPageToken: string }>(
+    'Google Drive',
+    `${BASE_URL}/changes/startPageToken?supportsAllDrives=true`,
+    token,
+  );
+  return body.startPageToken;
+}
+
+/** changes.list from `pageToken`, following at most `maxPages` pages. */
+export async function listChanges(
+  token: string,
+  pageToken: string,
+  fileFields: string,
+  { maxPages = 10, pageSize = 1000 } = {},
+): Promise<ChangesPage> {
+  const changes: DriveChange[] = [];
+  let current = pageToken;
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({
+      pageToken: current,
+      pageSize: String(pageSize),
+      includeRemoved: 'false',
+      fields: `nextPageToken,newStartPageToken,changes(fileId,removed,time,file(${fileFields}))`,
+    });
+    const body = await googleGet<ChangesResponse>(
+      'Google Drive',
+      `${BASE_URL}/changes?${params}&${ALL_DRIVES}`,
+      token,
+    );
+    changes.push(...(body.changes ?? []));
+    if (body.newStartPageToken) {
+      return { changes, nextToken: body.newStartPageToken, complete: true };
+    }
+    if (!body.nextPageToken) {
+      return { changes, nextToken: current, complete: true };
+    }
+    current = body.nextPageToken;
+  }
+  return { changes, nextToken: current, complete: false };
+}
+
+/** files.get with the given fields (`fileId` may be the `root` alias). */
+export function getFile(
+  token: string,
+  fileId: string,
+  fields: string,
+): Promise<DriveFile> {
+  const params = new URLSearchParams({ fields, supportsAllDrives: 'true' });
+  return googleGet<DriveFile>(
+    'Google Drive',
+    `${BASE_URL}/files/${encodeURIComponent(fileId)}?${params}`,
+    token,
+  );
 }
