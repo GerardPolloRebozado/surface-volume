@@ -1,5 +1,8 @@
-import { ActionError } from '../../workflow';
 import type { RunContext } from '../../workflow';
+import {
+  getAccessToken as getGoogleAccessToken,
+  googleGet,
+} from '../google/google.client';
 
 const BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const PAGE_SIZE = 100;
@@ -35,43 +38,11 @@ interface ListResponse {
 
 /** Reads the OAuth access token from the run context, or fails as auth_expired. */
 export function getAccessToken(ctx: RunContext): string {
-  const token = ctx.credential?.credentials?.accessToken;
-  if (typeof token !== 'string' || token.length === 0) {
-    throw new ActionError('Missing Gmail access token', 'auth_expired');
-  }
-  return token;
+  return getGoogleAccessToken(ctx, 'Gmail');
 }
 
-async function gmailGet<T>(token: string, path: string): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-  } catch (err) {
-    throw new ActionError(
-      `Gmail request failed: ${(err as Error).message}`,
-      'retryable',
-    );
-  }
-  if (res.ok) {
-    return (await res.json()) as T;
-  }
-  const detail = await res.text().catch(() => '');
-  const message = `Gmail API ${res.status}: ${detail}`.trim();
-  if (res.status === 401) throw new ActionError(message, 'auth_expired');
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get('retry-after'));
-    throw new ActionError(
-      message,
-      'rate_limited',
-      Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : undefined,
-    );
-  }
-  if (res.status >= 500) throw new ActionError(message, 'retryable');
-  throw new ActionError(message, 'fatal');
+function gmailGet<T>(token: string, path: string): Promise<T> {
+  return googleGet<T>('Gmail', `${BASE_URL}${path}`, token);
 }
 
 export interface MessageIdPage {
