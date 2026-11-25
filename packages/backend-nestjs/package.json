@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "try:gmail": "ts-node -P tsconfig.json --transpile-only scripts/try-gmail-trigger.ts"
+    "try:gmail": "ts-node -P tsconfig.json --transpile-only scripts/try-gmail-trigger.ts",
+    "try:drive": "ts-node -P tsconfig.json --transpile-only scripts/try-drive-trigger.ts"
   },
   "dependencies": {
     "@nestjs/authentication": "0.1.6",

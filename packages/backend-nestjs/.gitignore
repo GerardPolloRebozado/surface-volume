@@ -6,3 +6,6 @@ node_modules
 
 # Local state of scripts/try-gmail-trigger.ts
 /.gmail-trigger-state
+
+# Local state of scripts/try-drive-trigger.ts
+/.drive-trigger-state
