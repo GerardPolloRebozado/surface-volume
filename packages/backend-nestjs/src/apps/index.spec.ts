@@ -6,6 +6,7 @@ describe('app catalogue', () => {
     expect(findTrigger('gmail', 'new_starred_email')?.key).toBe(
       'new_starred_email',
     );
+    expect(findAction('gmail', 'send_email')?.key).toBe('send_email');
   });
 
   it('returns undefined for unknown apps and keys', () => {
