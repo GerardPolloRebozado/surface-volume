@@ -12,6 +12,7 @@ export type AuthDefinition =
       tokenUrl: string;
       scopes: string[];
       pkce?: boolean;
+      fields?: InputField[];
       refresh?: (credential: AppCredential) => Promise<OAuthTokens>;
     }
   | {
