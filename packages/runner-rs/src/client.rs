@@ -4,6 +4,9 @@ use serde_json::{json, Value};
 use std::env;
 use std::time::Duration;
 
+use crate::telemetry;
+use opentelemetry::KeyValue;
+
 pub struct InternalApi {
     http: reqwest::Client,
     base_url: String,
@@ -28,15 +31,23 @@ impl InternalApi {
     }
 
     async fn post(&self, path: String, body: Value) -> Result<(StatusCode, Value)> {
-        let response = self
+        let mut request = self
             .http
             .post(format!("{}{}", self.base_url, path))
-            .header("x-service-token", &self.token)
-            .json(&body)
-            .send()
-            .await?;
+            .header("x-service-token", &self.token);
+
+        // Continue the job's trace inside the backend's internal API.
+        if let Some(traceparent) = telemetry::current_traceparent() {
+            request = request.header("traceparent", traceparent);
+        }
+
+        let response = request.json(&body).send().await?;
 
         let status = response.status();
+        telemetry::metrics().api_calls.add(
+            1,
+            &[KeyValue::new("status", status.as_u16().to_string())],
+        );
         let body: Value = response.json().await.unwrap_or(Value::Null);
 
         if status == StatusCode::CONFLICT {

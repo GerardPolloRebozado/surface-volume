@@ -223,6 +223,90 @@ const response = await authApi.authControllerSignIn({
 
 The generated client is not meant to be hand-edited — it is always regenerated from the OpenAPI spec.
 
+---
+
+## Observability
+
+All telemetry is self-hosted OpenTelemetry, visualised in Grafana. The deployment
+is split into three Compose projects so the monitoring backends are deployed once,
+not alongside every app instance. See `docs/adr/0012-observability.md` for the
+decision and rejected alternatives.
+
+Start everything (from the repo root). The generated API clients are gitignored,
+so generate them once before building the web image:
+
+```bash
+pnpm generate:api-client             # requires Docker
+cp .env.example .env                 # then edit the secrets
+docker network create surface-net    # once per host
+docker compose -f deploy/datastores/docker-compose.yml up -d
+docker compose -f deploy/observability/docker-compose.yml up -d
+docker compose -f deploy/app/docker-compose.yml up -d --scale runner=3
+```
+
+| Endpoint | URL |
+|---|---|
+| Grafana | http://localhost:3001 (admin / value of `GF_SECURITY_ADMIN_PASSWORD`) |
+| Prometheus | http://localhost:9090 |
+| Tempo | http://localhost:3200 |
+| Loki | http://localhost:3100 |
+| OTel Collector | `otel-collector:4318` on `surface-net` |
+| Web app (Astro SSR) | http://localhost:4321 |
+| Backend health | http://localhost:8080/health and /health/ready |
+
+Three dashboards are provisioned automatically under the **Surface Volume**
+folder: *Service overview*, *Queue and workflows*, and *Runner fleet*. Alert
+rules are provisioned into Grafana Alerting (in-app only; no notification channel
+is configured).
+
+The backend preloads the OTel SDK via `NODE_OPTIONS --require
+./dist/telemetry/instrumentation.js` (see `packages/backend-nestjs/entrypoint.sh`).
+The Astro SSR web server does the same with `--require ./telemetry.cjs`, and its
+auth proxy calls carry spans (`Web.signIn`, `Web.getMe`, …) that join the same
+trace as the backend. Traces, metrics and logs are exported over OTLP/HTTP using
+the standard `OTEL_*` variables in `deploy/app/docker-compose.yml`. The runner
+does the same through `packages/runner-rs/src/telemetry.rs`. A trace that starts
+when a workflow step is enqueued continues in the Rust runner via
+`trace.traceparent` in the job payload and in the `traceparent` header of
+internal API calls.
+
+Sensitive headers and JSON keys (`token`, `secret`, `password`, API keys,
+credentials, …) are masked as `[REDACTED]` in both services before being exported.
+
+### Running the services in dev mode (no app containers)
+
+Postgres and Redis can stay in `deploy/datastores` (or come from devenv on their
+default ports). Run the app processes on the host with env overrides:
+
+```bash
+# Backend
+cd packages/backend-nestjs
+DATABASE_URL='postgresql://postgres:postgres@localhost:5433/surface_volume?schema=public' \
+REDIS_HOST=localhost REDIS_PORT=6380 \
+INTERNAL_SERVICE_TOKEN=change-me \
+CONNECTION_KEY="$(openssl rand -base64 32)" \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+NODE_OPTIONS='-r ts-node/register -r ./src/telemetry/instrumentation.ts' \
+pnpm run start:dev
+
+# Web (separate terminal)
+cd packages/web
+PUBLIC_BACKEND_URL=http://localhost:8080 pnpm run dev
+
+# Runner (separate terminal)
+cd packages/runner-rs
+REDIS_URL=redis://localhost:6380 API_BASE_URL=http://localhost:8080 \
+INTERNAL_SERVICE_TOKEN=change-me \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+cargo run -- work
+```
+
+The observability stack can keep running in Docker; the host processes reach the
+collector at `localhost:4318`. `CONNECTION_KEY` must be the same random 32-byte
+base64 value for both dev and Compose, otherwise saved connections cannot be
+decrypted.
+
+---
 
 ## Commands reference
 
@@ -237,12 +321,15 @@ The generated client is not meant to be hand-edited — it is always regenerated
 | `pnpm dev:web` | root | Start the React dev server |
 | `pnpm build:web` | root | Type-check and bundle the React app |
 | `bash scripts/generate-api-client.sh` | root | Generate Kotlin + TypeScript clients from OpenAPI |
+| `docker compose -f deploy/datastores/docker-compose.yml up -d` | root | Start Postgres + Redis for the app stack |
+| `docker compose -f deploy/observability/docker-compose.yml up -d` | root | Start Collector, Tempo, Prometheus, Loki and Grafana |
+| `docker compose -f deploy/app/docker-compose.yml up -d --scale runner=3` | root | Start the web app, backend and three runners |
 
 ---
 
 ## Documentation
 
-- `docs/adr/` — Architecture Decision Records (4 ADRs)
+- `docs/adr/` — Architecture Decision Records (10 ADRs)
 - `decision/RECOMMENDATION.md` — Stack selection rationale
 - `docs/STACK-DECISION.md` — Full stack decision document
 - `spikes/` — Technology spikes and comparisons

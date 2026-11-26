@@ -16,7 +16,8 @@ export interface RunListItem {
 export async function fetchRuns(token: string, backend: string): Promise<RunListItem[]> {
   try {
     const response = await fetch(`${backend}/runs`, {
-      headers: { authorization: `Bearer ${token}` },
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     })
     if (!response.ok) return []
     return (await response.json()) as RunListItem[]

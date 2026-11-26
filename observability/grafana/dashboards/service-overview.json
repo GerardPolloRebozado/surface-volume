@@ -1,0 +1,131 @@
+{
+  "uid": "surface-service-overview",
+  "title": "Service overview",
+  "tags": ["surface-volume", "services"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(service_calls_total, service_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": false,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request rate by service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_name) (rate(service_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\"}[5m]))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Error rate by service",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_name) (rate(service_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / clamp_min(sum by (service_name) (rate(service_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\"}[5m])), 0.001)",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "p95 latency by service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(service_duration_seconds_bucket{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\"}[5m])))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Requests per endpoint",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_name, http_route, http_request_method) (rate(service_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\"}[5m]))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true } } }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Slowest endpoints (p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(service_duration_seconds_bucket{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\",http_route!=\"\"}[5m])))",
+          "legendFormat": "{{http_route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Logs for selected service",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=~\"$service\"}"
+        }
+      ]
+    }
+  ]
+}

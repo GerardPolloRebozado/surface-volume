@@ -1,4 +1,4 @@
-export { BACKEND_URL } from './api-client'
+export { BACKEND_URL, PUBLIC_BACKEND_URL } from './api-client'
 
 export const ACCESS_COOKIE = 'access_token'
 export const REFRESH_COOKIE = 'refresh_token'

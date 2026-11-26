@@ -5,6 +5,7 @@ import { toAppCredential } from './app-credential';
 import type { RunContext } from './context.types';
 import type { AppCredential } from './credential.types';
 import { createStore } from './store-adapter';
+import { withSpan } from '../telemetry/tracing';
 
 interface BuildContextInput {
   workflowId: string;
@@ -22,6 +23,18 @@ export class RunContextService {
   ) {}
 
   async build(input: BuildContextInput): Promise<RunContext> {
+    return withSpan(
+      'RunContextService.build',
+      {
+        'workflow.id': input.workflowId,
+        'node.id': input.nodeId,
+        'run.id': input.runId ?? '',
+      },
+      () => this.buildInner(input),
+    );
+  }
+
+  private async buildInner(input: BuildContextInput): Promise<RunContext> {
     let credential: AppCredential | undefined;
 
     if (input.connectionId) {

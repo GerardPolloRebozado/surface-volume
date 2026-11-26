@@ -1,0 +1,73 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  filter/drop_healthchecks:
+    traces:
+      span:
+        - 'IsMatch(span.attributes["http.route"], "/ping|/health.*")'
+
+connectors:
+  # Derives RED metrics from spans so dashboards work without app-level HTTP metrics.
+  span_metrics:
+    namespace: service
+    histogram:
+      unit: s
+      explicit:
+        buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions:
+      - name: http.route
+      - name: http.request.method
+    exclude_dimensions:
+      - collector.instance.id
+    exemplars:
+      enabled: true
+    metrics_flush_interval: 15s
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  # Loki's native OTLP endpoint is /otlp; the exporter appends /v1/logs.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, filter/drop_healthchecks, batch]
+      exporters: [otlp/tempo, span_metrics]
+    metrics:
+      receivers: [otlp, span_metrics]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/loki]

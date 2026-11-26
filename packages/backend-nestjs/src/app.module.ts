@@ -23,11 +23,16 @@ import { AppsModule } from './apps/apps.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { InternalModule } from './internal/internal.module';
 import { HooksModule } from './hooks/hooks.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
+import { HealthModule } from './health/health.module';
+import { bullmqTelemetry } from './queue/queue.telemetry';
 
 const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()];
 
 @Module({
   imports: [
+    // First import = last to shut down, so pending OTLP batches are flushed.
+    TelemetryModule,
     ...crons,
     ConfigModule.forRoot({
       isGlobal: true,
@@ -62,6 +67,7 @@ const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()
         host: process.env.REDIS_HOST ?? 'localhost',
         port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
       },
+      telemetry: bullmqTelemetry,
     }),
     QueueModule,
     AppsModule,
@@ -69,6 +75,7 @@ const crons = process.env.DISABLE_CRONS === '1' ? [] : [ScheduleModule.forRoot()
     WorkflowsModule,
     InternalModule,
     HooksModule,
+    HealthModule,
   ],
   controllers: [AppController, PingController],
   providers: [AppService],

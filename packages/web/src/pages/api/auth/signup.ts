@@ -24,7 +24,15 @@ export const POST: APIRoute = async ({ request }) => {
       status: response.status,
       headers,
     })
-  } catch (e: any) {
-    return new Response(JSON.stringify({ message: 'Backend unavailable' }), { status: 502 })
+  } catch (error: any) {
+    const status = error?.response?.status ?? 502
+    const backendMessage = error?.response?.data?.message
+    const message = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage ?? 'Backend unavailable'
+    return new Response(JSON.stringify({ message }), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    })
   }
 }

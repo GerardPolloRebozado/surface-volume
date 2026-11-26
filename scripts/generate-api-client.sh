@@ -97,9 +97,6 @@ docker run --rm \
   generate \
   -i "$OPENAPI_JSON" \
   -g typescript-axios \
-  -p withSeparateModelsAndApi=true \
-  -p apiPackage=surfacevolume.api.client \
-  -p modelPackage=surfacevolume.api.models \
   -p basePath=http://localhost:8080 \
   -o "$OUTPUT_DIR_TS"
 

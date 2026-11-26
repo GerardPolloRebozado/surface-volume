@@ -1,0 +1,289 @@
+apiVersion: 1
+
+# Grafana-managed alert rules. No contact points or notification policies are
+# provisioned: alerts are visible in the in-app Alerting UI only.
+groups:
+  - orgId: 1
+    name: surface-volume
+    folder: Alerts
+    interval: 1m
+    rules:
+      - uid: backend-high-error-rate
+        title: Backend error rate above 5%
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: More than 5% of backend requests are failing.
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'sum(rate(service_calls_total{service_name="backend",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[5m])) / clamp_min(sum(rate(service_calls_total{service_name="backend",span_kind="SPAN_KIND_SERVER"}[5m])), 0.001)'
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+
+      - uid: backend-high-latency
+        title: Backend p95 latency above 1s
+        condition: C
+        for: 10m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: Backend p95 latency has been above one second.
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(service_duration_seconds_bucket{service_name="backend",span_kind="SPAN_KIND_SERVER"}[5m])))'
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+
+      - uid: queue-backlog-growing
+        title: Workflow queue backlog above 100
+        condition: C
+        for: 10m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: More than 100 jobs are waiting in the workflow queue.
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'max(queue_jobs_waiting{service_name="backend"})'
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [100]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+
+      - uid: no-runners-alive
+        title: No runners are alive
+        condition: C
+        for: 2m
+        labels:
+          severity: critical
+          service: runner
+        annotations:
+          summary: No runner heartbeat has been received recently.
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'sum(runner_heartbeat{service_name="runner"}) or vector(0)'
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+
+      - uid: runner-high-failure-rate
+        title: Runner job failure rate above 10%
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+          service: runner
+        annotations:
+          summary: More than 10% of runner jobs are failing.
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'sum(rate(runner_jobs_total{service_name="runner",outcome="failed"}[10m])) / clamp_min(sum(rate(runner_jobs_total{service_name="runner"}[10m])), 0.001)'
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [0.1]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C

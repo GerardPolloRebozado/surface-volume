@@ -29,7 +29,8 @@ import type {
   WorkflowNode,
   WorkflowResource,
 } from '@/data/contract'
-import { fetchRun, runWorkflow, saveWorkflow } from '@/lib/workflows'
+import { fetchRunById, runWorkflow, saveWorkflow } from '@/lib/workflows'
+import { PUBLIC_BACKEND_URL } from '@/lib/api-client'
 
 type RunTone = 'ok' | 'bad' | 'run'
 type FieldMap = Record<string, string>
@@ -325,15 +326,11 @@ function BuilderInner({
   workflow,
   apps,
   connections,
-  token,
-  backend,
 }: {
   workflowId: string
   workflow: WorkflowResource | null
   apps: AppCatalogueEntry[]
   connections: ConnectionResource[]
-  token: string
-  backend: string
 }) {
   const [name, setName] = useState(workflow?.name ?? 'Untitled workflow')
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initialNodes(workflow))
@@ -497,7 +494,7 @@ function BuilderInner({
   async function persist(): Promise<boolean> {
     setMessage('')
     try {
-      await saveWorkflow(token, backend, workflowId, { name, definition: definition() })
+      await saveWorkflow(workflowId, { name, definition: definition() })
       setDirty(false)
       setSaved(true)
       return true
@@ -516,9 +513,9 @@ function BuilderInner({
     if (!(await persist())) return
     setRunning(true)
     try {
-      const response = await fetch(`${backend}/workflows/${workflowId}/enable`, {
+      const response = await fetch(`${PUBLIC_BACKEND_URL}/workflows/${workflowId}/enable`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${token}` },
+        credentials: 'include',
       })
       if (!response.ok) throw new Error(await response.text())
       setMessage('Workflow enabled')
@@ -535,10 +532,10 @@ function BuilderInner({
     setRunStatus({ trigger: 'run' })
     setMessage('Starting run…')
     try {
-      const result = await runWorkflow(token, backend, workflowId)
+      const result = await runWorkflow(workflowId)
       let detail: RunDetail | null = null
       for (let i = 0; i < 30; i += 1) {
-        detail = await fetchRun(token, backend, result.runId)
+        detail = await fetchRunById(result.runId)
         if (['succeeded', 'failed', 'cancelled'].includes(detail.status)) break
         await sleep(700)
       }
@@ -898,8 +895,6 @@ export function BuilderRoute(props: {
   workflow: WorkflowResource | null
   apps: AppCatalogueEntry[]
   connections: ConnectionResource[]
-  token: string
-  backend: string
 }) {
   return (
     <ReactFlowProvider>

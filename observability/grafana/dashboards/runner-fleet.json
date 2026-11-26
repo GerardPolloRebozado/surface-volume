@@ -1,0 +1,170 @@
+{
+  "uid": "surface-runner-fleet",
+  "title": "Runner fleet",
+  "tags": ["surface-volume", "runners"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Live runners",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(runner_heartbeat{service_name=\"runner\"})",
+          "legendFormat": "runners"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Jobs in flight",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(runner_jobs_active{service_name=\"runner\"})",
+          "legendFormat": "active"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Job throughput",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(runner_jobs_total{service_name=\"runner\"}[5m]))",
+          "legendFormat": "jobs/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Failed jobs (1h)",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(runner_jobs_total{service_name=\"runner\",outcome=\"failed\"}[1h]))",
+          "legendFormat": "failed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Active jobs per runner instance",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_instance_id) (runner_jobs_active{service_name=\"runner\"})",
+          "legendFormat": "{{service_instance_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Job throughput per instance",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_instance_id) (rate(runner_jobs_total{service_name=\"runner\"}[5m]))",
+          "legendFormat": "{{service_instance_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Failure rate per instance",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service_instance_id) (rate(runner_jobs_total{service_name=\"runner\",outcome=\"failed\"}[5m])) / clamp_min(sum by (service_instance_id) (rate(runner_jobs_total{service_name=\"runner\"}[5m])), 0.001)",
+          "legendFormat": "{{service_instance_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Job duration p95 per instance",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, service_instance_id) (rate(runner_job_duration_seconds_bucket{service_name=\"runner\"}[5m])))",
+          "legendFormat": "{{service_instance_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "logs",
+      "title": "Runner logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=\"runner\"}"
+        }
+      ]
+    }
+  ]
+}

@@ -4,10 +4,23 @@ import { runWithAction } from './action-runner';
 import type { RunContext } from './context.types';
 import type { ActionResult } from './execution-result';
 import type { ActionNode } from './workflow.types';
+import { withSpan } from '../telemetry/tracing';
 
 @Injectable()
 export class ExecutorService {
   async runAction(
+    node: ActionNode,
+    inputs: Record<string, unknown>,
+    context: RunContext,
+  ): Promise<ActionResult> {
+    return withSpan(
+      'ExecutorService.runAction',
+      { 'action.app': node.appId, 'action.key': node.actionKey, 'node.id': node.id },
+      () => this.runActionInner(node, inputs, context),
+    );
+  }
+
+  private async runActionInner(
     node: ActionNode,
     inputs: Record<string, unknown>,
     context: RunContext,

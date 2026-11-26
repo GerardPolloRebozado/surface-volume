@@ -8,8 +8,12 @@ import { ConnectionCryptoService } from '../connections/connection-crypto.servic
 import { PrismaService } from '../prisma/prisma.service';
 import type { PlannerWindow } from '../workflow/planner';
 import { RunContextService } from '../workflow/run-context';
-import type { IncomingWebhook, WebhookTrigger } from '../workflow/triggers.types';
+import type {
+  IncomingWebhook,
+  WebhookTrigger,
+} from '../workflow/triggers.types';
 import { TriggersService } from '../triggers/triggers.service';
+import { withSpan } from '../telemetry/tracing';
 
 interface WebhookRequest {
   method: string;
@@ -32,13 +36,25 @@ export class HooksService {
     token: string,
     request: WebhookRequest,
   ): Promise<{ status: number; body: unknown } | undefined> {
+    return withSpan(
+      'HooksService.receive',
+      { 'http.request.method': request.method },
+      () => this.receiveInner(token, request),
+    );
+  }
+
+  private async receiveInner(
+    token: string,
+    request: WebhookRequest,
+  ): Promise<{ status: number; body: unknown } | undefined> {
     const trigger = await this.prisma.workflowTrigger.findUnique({
       where: { webhookToken: token },
     });
     if (!trigger || !trigger.enabled) throw new NotFoundException();
 
     const definition = findTrigger(trigger.appId, trigger.triggerKey);
-    if (!definition || definition.type !== 'webhook') throw new NotFoundException();
+    if (!definition || definition.type !== 'webhook')
+      throw new NotFoundException();
     const webhook = definition as WebhookTrigger;
 
     const incoming: IncomingWebhook = {
@@ -46,7 +62,8 @@ export class HooksService {
       method: request.method,
       headers: request.headers,
       query: request.query,
-      rawBody: request.rawBody ?? Buffer.from(JSON.stringify(request.body ?? {})),
+      rawBody:
+        request.rawBody ?? Buffer.from(JSON.stringify(request.body ?? {})),
       body: request.body,
       receivedAt: new Date().toISOString(),
     };
@@ -57,9 +74,13 @@ export class HooksService {
     let signingSecret: string | undefined;
     if (trigger.webhookSecretEnc) {
       const secret = this.crypto.decrypt(trigger.webhookSecretEnc);
-      signingSecret = typeof secret.secret === 'string' ? secret.secret : undefined;
+      signingSecret =
+        typeof secret.secret === 'string' ? secret.secret : undefined;
     }
-    if (webhook.verify && !(await webhook.verify(incoming, { signingSecret }))) {
+    if (
+      webhook.verify &&
+      !(await webhook.verify(incoming, { signingSecret }))
+    ) {
       throw new UnauthorizedException();
     }
 

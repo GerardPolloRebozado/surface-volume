@@ -21,13 +21,9 @@ function status(status: ConnectionResource['status']): { label: string; tone: To
 export function ServicesRoute({
   apps,
   connections,
-  token,
-  backend,
 }: {
   apps: AppCatalogueEntry[]
   connections: ConnectionResource[]
-  token: string
-  backend: string
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
@@ -40,7 +36,7 @@ export function ServicesRoute({
     setBusy(true)
     setError('')
     try {
-      await connectApp(token, backend, appId, values)
+      await connectApp(appId, values)
       window.location.reload()
     } catch (err) {
       setError((err as Error).message)
@@ -52,7 +48,7 @@ export function ServicesRoute({
     setBusy(true)
     setError('')
     try {
-      const result = await testConnection(token, backend, id)
+      const result = await testConnection(id)
       if (!result.ok) setError(result.message ?? 'The provider rejected the token')
       window.location.reload()
     } catch (err) {
@@ -65,7 +61,7 @@ export function ServicesRoute({
     setBusy(true)
     setError('')
     try {
-      await disconnect(token, backend, id)
+      await disconnect(id)
       window.location.reload()
     } catch (err) {
       setError((err as Error).message)
