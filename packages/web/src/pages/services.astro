@@ -11,5 +11,5 @@ const [apps, connections] = await Promise.all([
 ])
 ---
 <App title="Services · area" active="services">
-  <ServicesRoute client:load apps={apps} connections={connections} token={token} backend={BACKEND_URL} />
+  <ServicesRoute client:load apps={apps} connections={connections} />
 </App>

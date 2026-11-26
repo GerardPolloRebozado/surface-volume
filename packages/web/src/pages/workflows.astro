@@ -8,5 +8,5 @@ const token = Astro.cookies.get(ACCESS_COOKIE)?.value ?? ''
 const workflows = await fetchWorkflows(token, BACKEND_URL).catch(() => [])
 ---
 <App title="Workflows · area" active="workflows">
-  <WorkflowsRoute client:load workflows={workflows} token={token} backend={BACKEND_URL} />
+  <WorkflowsRoute client:load workflows={workflows} />
 </App>

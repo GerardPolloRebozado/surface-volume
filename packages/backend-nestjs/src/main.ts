@@ -4,9 +4,19 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as fs from 'fs';
 import * as path from 'path';
 import cookieParser from 'cookie-parser';
+import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
+import { TelemetryRouteInterceptor } from './telemetry/route.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  app.enableShutdownHooks();
+  const logger = app.get(Logger);
+  app.useLogger(logger);
+  app.useGlobalInterceptors(
+    new TelemetryRouteInterceptor(),
+    new LoggerErrorInterceptor(),
+  );
 
   app.use(cookieParser());
   app.use((req: any, _res: any, next: any) => {
@@ -21,6 +31,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:8081',
       'http://localhost:3000',
+      'http://localhost:4321',
       'http://10.0.2.2:8080',
       'http://10.0.2.2:8081',
       '*',
@@ -55,9 +66,9 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 8080;
   await app.listen(port);
-  console.log(`API running on http://localhost:${port}`);
-  console.log(`Ping endpoint: http://localhost:${port}/ping`);
-  console.log(`OpenAPI spec: http://localhost:${port}/api-json`);
-  console.log(`OpenAPI JSON written to ${openapiPath}`);
+  logger.log(`API running on http://localhost:${port}`);
+  logger.log(`Ping endpoint: http://localhost:${port}/ping`);
+  logger.log(`OpenAPI spec: http://localhost:${port}/api-json`);
+  logger.log(`OpenAPI JSON written to ${openapiPath}`);
 }
 bootstrap();

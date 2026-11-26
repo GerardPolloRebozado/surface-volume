@@ -13,6 +13,8 @@ import {
 import { RunContextService } from '../workflow/run-context';
 import { RunsService } from '../workflow/runs.service';
 import { ConnectionsService } from '../connections/connections.service';
+import { backendMetrics } from '../telemetry/metrics';
+import { withSpan } from '../telemetry/tracing';
 
 export type RunOutcome =
   | {
@@ -62,6 +64,14 @@ export class StepRunnerService {
   ) {}
 
   async claim(stepId: string, attempt: number): Promise<ClaimOutcome> {
+    return withSpan(
+      'StepRunnerService.claim',
+      { 'step.id': stepId, 'step.attempt': attempt },
+      () => this.claimInner(stepId, attempt),
+    );
+  }
+
+  private async claimInner(stepId: string, attempt: number): Promise<ClaimOutcome> {
     const step = await this.prisma.runStep.findUnique({
       where: { id: stepId },
       include: { run: true },
@@ -114,6 +124,18 @@ export class StepRunnerService {
   }
 
   async result(stepId: string, attempt: number, body: StepResultBody): Promise<RunOutcome> {
+    return withSpan(
+      'StepRunnerService.result',
+      { 'step.id': stepId, 'step.attempt': attempt, 'step.status': body.status },
+      () => this.resultInner(stepId, attempt, body),
+    );
+  }
+
+  private async resultInner(
+    stepId: string,
+    attempt: number,
+    body: StepResultBody,
+  ): Promise<RunOutcome> {
     const step = await this.prisma.runStep.findUnique({
       where: { id: stepId },
       include: { run: true },
@@ -188,6 +210,37 @@ export class StepRunnerService {
   }
 
   private async finish(
+    prepared: Prepared,
+    result: ActionResult,
+    attempt: number,
+  ): Promise<RunOutcome> {
+    const startedAt = Date.now();
+    return withSpan(
+      'StepRunnerService.finish',
+      {
+        'step.id': prepared.step.id,
+        'run.id': prepared.step.runId,
+        'workflow.id': prepared.step.run.workflowId,
+        'step.node_id': prepared.step.nodeId,
+        'step.attempt': attempt,
+      },
+      async (span) => {
+        const outcome = await this.finishInner(prepared, result, attempt);
+        const status = 'status' in outcome ? outcome.status : outcome.reason;
+        span.setAttribute('step.outcome', status);
+        const labels = {
+          status,
+          error_kind: result.errorKind ?? 'none',
+          attempt: String(attempt),
+        };
+        backendMetrics.stepsFinished.add(1, labels);
+        backendMetrics.stepDuration.record((Date.now() - startedAt) / 1000, labels);
+        return outcome;
+      },
+    );
+  }
+
+  private async finishInner(
     prepared: Prepared,
     result: ActionResult,
     attempt: number,

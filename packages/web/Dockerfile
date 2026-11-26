@@ -17,6 +17,12 @@ WORKDIR /app/packages/web
 
 RUN pnpm install --frozen-lockfile=false
 
+# BACKEND_URL is read at runtime by the SSR server; bake the container default too.
+ARG BACKEND_URL=http://backend:8080
+ENV BACKEND_URL=$BACKEND_URL
+ARG PUBLIC_BACKEND_URL=http://localhost:8080
+ENV PUBLIC_BACKEND_URL=$PUBLIC_BACKEND_URL
+
 COPY packages/web ./
 
 RUN pnpm run build
@@ -29,6 +35,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4321
+ENV BACKEND_URL=http://backend:8080
 
 RUN npm install -g pnpm@12
 
@@ -40,7 +47,9 @@ WORKDIR /app/packages/web
 RUN pnpm install --prod --frozen-lockfile=false
 
 COPY --from=builder /app/packages/web/dist ./dist
+COPY --from=builder /app/packages/web/telemetry.cjs ./telemetry.cjs
 
 EXPOSE 4321
 
-CMD ["node", "dist/server/entry.mjs"]
+# Preload the OTel SDK before Astro/Express is imported.
+CMD ["node", "--require=./telemetry.cjs", "dist/server/entry.mjs"]

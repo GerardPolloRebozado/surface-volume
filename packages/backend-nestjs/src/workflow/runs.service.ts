@@ -5,6 +5,8 @@ import { WorkflowQueue } from '../queue/workflow.queue';
 import { findNode, planContinuations, type PlannerWindow } from './planner';
 import { triggerStepData, type TriggerEventData } from './run-steps';
 import { completionStatus } from './run-completion';
+import { backendMetrics } from '../telemetry/metrics';
+import { withSpan } from '../telemetry/tracing';
 
 interface Failure {
   nodeId: string;
@@ -88,20 +90,30 @@ export class RunsService {
     const status = completionStatus(outcome, remaining);
     if (!status) return null;
 
-    await this.prisma.workflowRun.update({
-      where: { id: runId },
-      data: {
-        status,
-        finishedAt: new Date(),
-        ...(status === 'failed' && failure
-          ? {
-              errorNodeId: failure.nodeId,
-              errorKind: failure.errorKind,
-              errorMessage: failure.errorMessage,
-            }
-          : {}),
+    await withSpan(
+      'RunsService.completeIfDone',
+      { 'run.id': runId, 'run.status': status },
+      async () => {
+        await this.prisma.workflowRun.update({
+          where: { id: runId },
+          data: {
+            status,
+            finishedAt: new Date(),
+            ...(status === 'failed' && failure
+              ? {
+                  errorNodeId: failure.nodeId,
+                  errorKind: failure.errorKind,
+                  errorMessage: failure.errorMessage,
+                }
+              : {}),
+          },
+        });
+        backendMetrics.runs.add(1, {
+          status,
+          error_kind: failure?.errorKind ?? 'none',
+        });
       },
-    });
+    );
 
     return status;
   }

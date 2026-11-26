@@ -9,3 +9,4 @@ allowBuilds:
   '@scarf/scarf': true
   prisma: true
   msgpackr-extract: true
+  protobufjs: true

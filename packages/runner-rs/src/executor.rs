@@ -4,6 +4,9 @@ use reqwest::{Client, Method, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use tracing::Instrument;
+
+use crate::redaction;
 
 #[derive(Deserialize)]
 pub struct PlanCall {
@@ -131,7 +134,50 @@ async fn execute_one(
     values: &Value,
 ) -> Result<(Value, Option<CallError>)> {
     let url = resolve_string(&call.url, values);
-    let mut request = http.request(Method::from_bytes(call.method.as_bytes())?, &url);
+    let target = reqwest::Url::parse(&url)
+        .map(|parsed| {
+            format!(
+                "{}://{}{}",
+                parsed.scheme(),
+                parsed.host_str().unwrap_or("unknown"),
+                parsed.path()
+            )
+        })
+        .unwrap_or_else(|_| "<invalid-url>".to_string());
+
+    let span = tracing::info_span!(
+        "runner.action_call",
+        "call.id" = %call.id,
+        "http.request.method" = %call.method,
+        "http.target" = %target,
+        "error.kind" = tracing::field::Empty,
+    );
+
+    async move {
+        if let Some(headers) = &call.headers {
+            tracing::debug!(headers = %redaction::redact_headers(headers), "action headers");
+        }
+        if let Some(body) = &call.body {
+            tracing::debug!(body = %redaction::redact_body(body), "action body");
+        }
+
+        let result = execute_one_inner(http, call, values, &url).await;
+        if let Ok((_, Some(error))) = &result {
+            tracing::Span::current().record("error.kind", error.kind);
+        }
+        result
+    }
+    .instrument(span)
+    .await
+}
+
+async fn execute_one_inner(
+    http: &Client,
+    call: &PlanCall,
+    values: &Value,
+    url: &str,
+) -> Result<(Value, Option<CallError>)> {
+    let mut request = http.request(Method::from_bytes(call.method.as_bytes())?, url);
 
     if let Some(headers) = &call.headers {
         for (name, value) in headers {

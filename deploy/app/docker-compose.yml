@@ -1,0 +1,80 @@
+name: surface-app
+
+# One backend, N runners. Scale with:
+#   docker compose -f deploy/app/docker-compose.yml up -d --scale runner=3
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: packages/backend-nestjs/Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-surface_volume}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OTEL_SERVICE_NAME: backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_SAMPLING_RATIO:-1}
+      OTEL_METRIC_EXPORT_INTERVAL: 10000
+      OTEL_METRIC_EXPORT_TIMEOUT: 10000
+    ports:
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+    networks:
+      - surface-net
+
+  web:
+    build:
+      context: ../..
+      dockerfile: packages/web/Dockerfile
+      args:
+        PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:8080}
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4321
+      BACKEND_URL: http://backend:8080
+      OTEL_SERVICE_NAME: web
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_SAMPLING_RATIO:-1}
+      OTEL_METRIC_EXPORT_INTERVAL: 10000
+      OTEL_METRIC_EXPORT_TIMEOUT: 10000
+    ports:
+      - "${WEB_HOST_PORT:-4321}:4321"
+    networks:
+      - surface-net
+
+  runner:
+    build:
+      context: ../..
+      dockerfile: packages/runner-rs/Dockerfile
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_BASE_URL: http://backend:8080
+      OTEL_SERVICE_NAME: runner
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRIC_EXPORT_INTERVAL: 10000
+      OTEL_METRIC_EXPORT_TIMEOUT: 10000
+      RUST_LOG: ${RUST_LOG:-info}
+    networks:
+      - surface-net
+
+networks:
+  surface-net:
+    name: surface-net
+    external: true

@@ -18,12 +18,8 @@ import {
 
 export function WorkflowsRoute({
   workflows,
-  token,
-  backend,
 }: {
   workflows: WorkflowListItem[]
-  token: string
-  backend: string
 }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -56,7 +52,7 @@ export function WorkflowsRoute({
               disabled={busy}
               onClick={() =>
                 act(async () => {
-                  const created = await createWorkflow(token, backend, 'Untitled workflow')
+                  const created = await createWorkflow('Untitled workflow')
                   window.location.href = `/builder/${created.id}`
                 }, false)
               }
@@ -99,7 +95,7 @@ export function WorkflowsRoute({
                             type="button"
                             className="btn btn-quiet btn-sm"
                             disabled={busy}
-                            onClick={() => act(() => runWorkflow(token, backend, workflow.id))}
+                            onClick={() => act(() => runWorkflow(workflow.id))}
                           >
                             Run now
                           </button>
@@ -110,8 +106,8 @@ export function WorkflowsRoute({
                             onClick={() =>
                               act(() =>
                                 workflow.status === 'on'
-                                  ? disableWorkflow(token, backend, workflow.id)
-                                  : enableWorkflow(token, backend, workflow.id),
+                                  ? disableWorkflow(workflow.id)
+                                  : enableWorkflow(workflow.id),
                               )
                             }
                           >
@@ -121,7 +117,7 @@ export function WorkflowsRoute({
                             type="button"
                             className="btn btn-ghost btn-sm btn-danger"
                             disabled={busy}
-                            onClick={() => act(() => deleteWorkflow(token, backend, workflow.id))}
+                            onClick={() => act(() => deleteWorkflow(workflow.id))}
                           >
                             Delete
                           </button>
